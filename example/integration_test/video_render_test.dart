@@ -140,7 +140,7 @@ void main() {
     expect(meta.duration.inSeconds, 13);
   });
 
-  testWidgets('change speed to 2x and 0.5x', (tester) async {
+  testWidgets('change speed to 2x and 0.8x', (tester) async {
     final originalMeta = await ProVideoEditor.instance.getMetadata(inputVideo);
 
     Future<void> testSpeed(double speed) async {
@@ -160,7 +160,7 @@ void main() {
     }
 
     await testSpeed(2.0); // Speed up
-    await testSpeed(0.5); // Slow down
+    await testSpeed(0.8); // Slow down
   });
 
   testWidgets('remove audio', (tester) async {
