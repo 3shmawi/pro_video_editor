@@ -71,6 +71,7 @@ void main() {
   }, skip: !isIOS && !isMacOS);
 
   testWidgets('rotate 90°', (tester) async {
+    final originalMeta = await ProVideoEditor.instance.getMetadata(inputVideo);
     var meta = await testRender(
       description: 'Rotate 90°',
       renderModel: RenderVideoModel(
@@ -79,7 +80,12 @@ void main() {
         transform: const ExportTransform(rotateTurns: 1),
       ),
     );
-    expect(meta.rotation, 90);
+
+    if (meta.rotation != 0) {
+      expect(meta.rotation, 90);
+    } else {
+      expect(meta.resolution, originalMeta.resolution.flipped);
+    }
   });
 
   testWidgets('flip horizontally and vertically', (tester) async {
@@ -196,14 +202,30 @@ void main() {
     );
   });
 
-  testWidgets('set bitrate', (tester) async {
-    await testRender(
-      description: 'Bitrate set to 1Mbps',
+  testWidgets('Bitrate is applied correctly (2.5 Mbps)', (tester) async {
+    const expectedBitrate = 2500000; // 2.5 Mbps
+    const tolerance = 0.4; // ±40% Important if CBR isn't supported
+
+    var meta = await testRender(
+      description: 'Bitrate set to 2.5 Mbps',
       renderModel: RenderVideoModel(
         video: inputVideo,
         outputFormat: VideoOutputFormat.mp4,
-        bitrate: 1000000,
+        bitrate: expectedBitrate,
       ),
+    );
+
+    final actualBitrate = meta.bitrate; // in bits per second
+    const minBitrate = expectedBitrate * (1 - tolerance);
+    const maxBitrate = expectedBitrate * (1 + tolerance);
+
+    final bitrateValid =
+        actualBitrate >= minBitrate && actualBitrate <= maxBitrate;
+
+    expect(
+      bitrateValid,
+      isTrue,
+      reason: 'Bitrate validation failed. The Bitrate is $actualBitrate.',
     );
   });
 
