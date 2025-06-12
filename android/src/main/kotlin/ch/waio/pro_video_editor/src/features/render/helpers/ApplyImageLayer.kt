@@ -54,7 +54,7 @@ fun applyImageLayer(
         Bitmap.createScaledBitmap(overlayBitmap, videoWidth, videoHeight, true)
 
     val bitmapOverlay = BitmapOverlay.createStaticBitmapOverlay(scaledOverlay)
-    val overlayEffect = OverlayEffect(ImmutableList.of(bitmapOverlay))
+    val overlayEffect = OverlayEffect(listOf(bitmapOverlay))
 
     videoEffects += overlayEffect
 }
