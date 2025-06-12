@@ -69,6 +69,7 @@ class RenderVideo {
                     await applyAudio(
                         from: asset, to: composition, timeRange: timeRange, enableAudio: enableAudio
                     )
+                    applyPlaybackSpeed(composition: composition, speed: playbackSpeed)
 
                     // Enhanced video composition with orientation handling
                     let (videoComposition, correctedNaturalSize, preferredTransform) =
@@ -96,7 +97,6 @@ class RenderVideo {
                     applyRotation(config: &config, rotateTurns: rotateTurns)
                     applyFlip(config: &config, flipX: flipX, flipY: flipY)
                     applyScale(config: &config, scaleX: scaleX, scaleY: scaleY)
-                    applyPlaybackSpeed(composition: composition, speed: playbackSpeed)
                     applyColorMatrix(
                         config: &config, to: videoComposition, matrixList: colorMatrixList)
                     applyBlur(config: &config, sigma: blur)

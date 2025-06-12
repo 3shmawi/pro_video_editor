@@ -1,5 +1,8 @@
+## 0.1.7
+- **FIX**(iOS, macOS): Resolved a crash that occurred when setting playback speed below 1x. This resolves issue [#29](https://github.com/hm21/pro_video_editor/issues/29).
+
 ## 0.1.6
-- **FIX**(iOS, macOS): Fixed rotation transforms not properly swapping render dimensions for 90°/270° rotations, resolving squeezed video output with black bars
+- **FIX**(iOS, macOS): Fixed rotation transforms not properly swapping render dimensions for 90°/270° rotations, resolving squeezed video output with black bars.
 
 ## 0.1.5
 - **FIX**(window, linux, iOS, macOS): Correct bitrate extraction from metadata. 
