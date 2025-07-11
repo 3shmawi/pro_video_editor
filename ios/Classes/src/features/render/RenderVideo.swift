@@ -10,6 +10,7 @@ class RenderVideo {
         imageData: Data?,
         inputFormat: String,
         outputFormat: String,
+        outputPath: String?,
         rotateTurns: Int?,
         flipX: Bool,
         flipY: Bool,
@@ -49,7 +50,11 @@ class RenderVideo {
 
                 do {
                     inputURL = try writeInputVideo(videoData, format: inputFormat)
-                    outputURL = temporaryURL(for: outputFormat)
+                    if let outputPath = outputPath {
+                        outputURL = URL(fileURLWithPath: outputPath)
+                    } else {
+                        outputURL = temporaryURL(for: outputFormat)
+                    }
 
                     let asset = AVURLAsset(url: inputURL)
                     let composition = AVMutableComposition()
@@ -151,8 +156,12 @@ class RenderVideo {
 
                     try await monitorExportProgress(export, onProgress: onProgress)
 
-                    let data = try Data(contentsOf: outputURL)
-                    handleCompletion(.success(data))
+                    if(outputPath != nil){
+                        handleCompletion(.success(nil))
+                    } else {
+                        let data = try Data(contentsOf: outputURL)
+                        handleCompletion(.success(data))
+                    }
                 } catch {
                     handleCompletion(.failure(error))
                 }

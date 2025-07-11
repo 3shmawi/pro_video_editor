@@ -84,6 +84,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
 
             let inputFormat = args["inputFormat"] as? String ?? "mp4"
             let outputFormat = args["outputFormat"] as? String ?? "mp4"
+            let outputPath = args["outputPath"] as? String
             let imageBytes = (args["imageBytes"] as? FlutterStandardTypedData)?.data
             let rotateTurns = args["rotateTurns"] as? Int
             let cropWidth = args["cropWidth"] as? Int
@@ -109,6 +110,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
                 imageData: imageBytes,
                 inputFormat: inputFormat,
                 outputFormat: outputFormat,
+                outputPath: outputPath,
                 rotateTurns: rotateTurns,
                 flipX: flipX,
                 flipY: flipY,
