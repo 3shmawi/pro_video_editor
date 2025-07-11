@@ -30,13 +30,13 @@ class MethodChannelProVideoEditor extends ProVideoEditor {
 
   @override
   Future<VideoMetadata> getMetadata(EditorVideo value) async {
-    var videoBytes = await value.safeByteArray();
+    var inputPath = await value.safeFilePath();
 
-    var extension = _getFileExtension(videoBytes);
+    var extension = _getFileExtension(inputPath);
 
     final response =
         await methodChannel.invokeMethod<Map<dynamic, dynamic>>('getMetadata', {
-              'videoBytes': videoBytes,
+              'inputPath': inputPath,
               'extension': extension,
             }) ??
             {};
@@ -45,13 +45,13 @@ class MethodChannelProVideoEditor extends ProVideoEditor {
   }
 
   Future<List<Uint8List>> _extractThumbnails(ThumbnailBase value) async {
-    var videoBytes = await value.video.safeByteArray();
+    var inputPath = await value.video.safeFilePath();
 
     final response = await methodChannel.invokeMethod<List<dynamic>>(
       'getThumbnails',
       {
-        'videoBytes': videoBytes,
-        'extension': _getFileExtension(videoBytes),
+        'inputPath': inputPath,
+        'extension': _getFileExtension(inputPath),
         ...value.toMap(),
       },
     );
@@ -73,19 +73,14 @@ class MethodChannelProVideoEditor extends ProVideoEditor {
   @override
   Future<Uint8List> renderVideo(RenderVideoModel value) async {
     final renderData = await value.toAsyncMap();
-    var extension = lookupMimeType(
-      '',
-      headerBytes: await value.video.safeByteArray(),
-    );
-    String inputFormat = 'mp4';
-    List<String>? sp = extension?.split('/');
-    if (sp?.length == 1) inputFormat = sp![1];
+
+    var extension = _getFileExtension(renderData['inputPath']);
 
     final Uint8List? result = await methodChannel.invokeMethod<Uint8List>(
       'renderVideo',
       {
         ...renderData,
-        'inputFormat': inputFormat,
+        'inputFormat': extension,
       },
     );
 
@@ -102,19 +97,16 @@ class MethodChannelProVideoEditor extends ProVideoEditor {
     RenderVideoModel value,
   ) async {
     final renderData = await value.toAsyncMap();
-    var extension = lookupMimeType(
-      '',
-      headerBytes: await value.video.safeByteArray(),
-    );
-    String inputFormat = 'mp4';
-    List<String>? sp = extension?.split('/');
-    if (sp?.length == 1) inputFormat = sp![1];
+    final inputPath = await value.video.safeFilePath();
+
+    var extension = _getFileExtension(renderData['inputPath']);
 
     await methodChannel.invokeMethod<String>(
       'renderVideo',
       {
         ...renderData,
-        'inputFormat': inputFormat,
+        'inputFormat': extension,
+        'inputPath': inputPath,
         'outputPath': filePath,
       },
     );
@@ -135,8 +127,8 @@ class MethodChannelProVideoEditor extends ProVideoEditor {
     }).listen(progressCtrl.add);
   }
 
-  String _getFileExtension(Uint8List videoBytes) {
-    var mimeType = lookupMimeType('', headerBytes: videoBytes);
+  String _getFileExtension(String inputPath) {
+    var mimeType = lookupMimeType(inputPath);
     var mimeSp = mimeType?.split('/') ?? [];
     var extension = mimeSp.length == 2 ? mimeSp[1] : 'mp4';
 

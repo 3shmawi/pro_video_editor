@@ -7,7 +7,7 @@ class RenderVideo {
     static let queue = DispatchQueue(label: "RenderVideoQueue")
 
     static func render(
-        videoData: Data,
+        inputPath: String,
         imageData: Data?,
         inputFormat: String,
         outputFormat: String,
@@ -38,7 +38,7 @@ class RenderVideo {
                 var outputURL: URL!
 
                 let finalize: () -> Void = {
-                    try? cleanup([inputURL, outputURL])
+                    try? cleanup([outputURL])
                 }
 
                 let handleCompletion: (Result<Data, Error>) -> Void = { result in
@@ -50,7 +50,7 @@ class RenderVideo {
                 }
 
                 do {
-                    inputURL = try writeInputVideo(videoData, format: inputFormat)
+                    inputURL = URL(fileURLWithPath: inputPath)
                     if let outputPath = outputPath {
                         outputURL = URL(fileURLWithPath: outputPath)
                     } else {

@@ -114,7 +114,7 @@ class RenderVideoModel {
 
     return {
       'id': id,
-      'videoBytes': await video.safeByteArray(),
+      'inputPath': await video.safeFilePath(),
       'imageBytes': imageBytes,
       'rotateTurns': transform.rotateTurns,
       'flipX': transform.flipX,

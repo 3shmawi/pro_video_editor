@@ -8,9 +8,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 class Metadata(private val context: Context) {
-    fun processVideo(videoData: ByteArray, extension: String): Map<String, Any> {
-        val tempFile = createTempFile(videoData, extension)
-            ?: return mapOf("error" to "Failed to create temp file")
+    fun processVideo(inputPath: String, extension: String): Map<String, Any> {
+        val tempFile = File(inputPath)
 
         val fileSize = tempFile.length()
         val retriever = MediaMetadataRetriever()
@@ -78,14 +77,4 @@ class Metadata(private val context: Context) {
         )
     }
 
-    private fun createTempFile(videoData: ByteArray, extension: String): File? {
-        return try {
-            val tempDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
-            val tempFile = File.createTempFile("vid", ".$extension", tempDir)
-            FileOutputStream(tempFile).use { it.write(videoData) }
-            tempFile
-        } catch (e: IOException) {
-            null
-        }
-    }
 }

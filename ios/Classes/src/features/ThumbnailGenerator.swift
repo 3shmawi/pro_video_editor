@@ -4,7 +4,7 @@ import UIKit
 class ThumbnailGenerator {
 
     static func getThumbnails(
-        videoData: Data,
+        inputPath: String,
         extension ext: String,
         outputFormat: String,
         boxFit: String,
@@ -14,10 +14,7 @@ class ThumbnailGenerator {
         maxOutputFrames: Int? = 10,
         onProgress: @escaping (Double) -> Void
     ) async -> [Data] {
-        guard let videoURL = createTempFile(videoData: videoData, ext: ext) else {
-            return []
-        }
-
+        let videoURL = URL(fileURLWithPath: inputPath)
         let asset = AVURLAsset(url: videoURL)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
@@ -83,7 +80,6 @@ class ThumbnailGenerator {
             }
         }
 
-        try? FileManager.default.removeItem(at: videoURL)
         return results.filter { !$0.isEmpty }
     }
 
@@ -156,21 +152,6 @@ class ThumbnailGenerator {
         return (0..<maxFrames).map {
             let time = CMTime(seconds: Double($0) * step, preferredTimescale: 1_000_000)
             return NSValue(time: time)
-        }
-    }
-
-    private static func createTempFile(videoData: Data, ext: String) -> URL? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss_SSS"
-        let timestamp = formatter.string(from: Date())
-        let filename = "video_input_\(timestamp).\(ext)"
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-
-        do {
-            try videoData.write(to: tempURL)
-            return tempURL
-        } catch {
-            return nil
         }
     }
 }

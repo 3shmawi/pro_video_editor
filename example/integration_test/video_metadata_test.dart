@@ -15,9 +15,6 @@ void main() {
   testWidgets('plugin getMetadata returns correct values', (tester) async {
     final video = EditorVideo.asset(kVideoEditorExampleAssetPath);
 
-    // Ensure bytes are preloaded to exclude loading overhead from the trace
-    await video.safeByteArray();
-
     final metadata = await ProVideoEditor.instance.getMetadata(video);
 
     expect(metadata.duration.inSeconds, equals(29));

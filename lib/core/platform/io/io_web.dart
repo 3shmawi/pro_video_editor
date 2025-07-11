@@ -15,6 +15,11 @@ class File {
     throw ArgumentError('This function is not supported on the web.');
   }
 
+  /// Write to the file path
+  Future<void> writeAsBytes(Uint8List value, {bool? flush}) async {
+    throw ArgumentError('This function is not supported on the web.');
+  }
+
   /// Read bytes async
   Future<Uint8List> readAsBytes() async {
     throw ArgumentError('This function is not supported on the web.');
@@ -22,6 +27,11 @@ class File {
 
   /// Read bytes sync
   String readAsStringSync() {
+    throw ArgumentError('This function is not supported on the web.');
+  }
+
+  /// Creates a new independent [IOSink] for the file.
+  Future<void> openWrite() {
     throw ArgumentError('This function is not supported on the web.');
   }
 }

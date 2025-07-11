@@ -53,11 +53,11 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
             }
 
             "getMetadata" -> {
-                val videoBytes = call.argument<ByteArray>("videoBytes")
+                val inputPath = call.argument<String>("inputPath") 
                 val extension = call.argument<String>("extension")
 
-                if (videoBytes != null && extension != null) {
-                    val meta = metadata.processVideo(videoBytes, extension)
+                if (inputPath != null && extension != null) {
+                    val meta = metadata.processVideo(inputPath, extension)
                     result.success(meta)
                 } else {
                     result.error(
@@ -68,7 +68,7 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
 
             "getThumbnails" -> {
                 val id = call.argument<String>("id") ?: ""
-                val videoBytes = call.argument<ByteArray>("videoBytes")
+                val inputPath = call.argument<String>("inputPath") 
                 val extension = call.argument<String>("extension")
                 val boxFit = call.argument<String>("boxFit")
                 val outputFormat = call.argument<String>("outputFormat")
@@ -79,7 +79,7 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
                 val maxOutputFrames = call.argument<Number>("maxOutputFrames")?.toInt()
 
 
-                if (videoBytes == null ||
+                if (inputPath == null ||
                     extension == null ||
                     boxFit == null ||
                     outputFormat == null ||
@@ -95,7 +95,7 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
                 coroutineScope.launch {
                     try {
                         val thumbnails = thumbnailGenerator.getThumbnails(
-                            videoBytes = videoBytes,
+                            inputPath = inputPath,
                             extension = extension,
                             outputFormat = outputFormat,
                             boxFit = boxFit,
@@ -120,7 +120,6 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
 
             "renderVideo" -> {
                 val id = call.argument<String>("id") ?: ""
-                val videoBytes = call.argument<ByteArray>("videoBytes")
                 val imageBytes = call.argument<ByteArray?>("imageBytes")
                 val rotateTurns = call.argument<Number>("rotateTurns")?.toInt()
                 val cropWidth = call.argument<Number>("cropWidth")?.toInt()
@@ -139,25 +138,18 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
                 val endUs = call.argument<Number>("endTime")?.toLong()
                 val inputFormat = call.argument<String>("inputFormat") ?: "mp4"
                 val outputFormat = call.argument<String>("outputFormat") ?: "mp4"
+                val inputPath = call.argument<String>("inputPath") ?: ""
                 val outputPath = call.argument<String>("outputPath")
                 val colorMatrixList = call.argument<List<List<Double>>>("colorMatrixList")
                     ?: emptyList<List<Double>>()
 
-                if (videoBytes == null) {
-                    result.error(
-                        "INVALID_ARGUMENTS",
-                        "Missing parameters",
-                        null
-                    )
-                    return
-                }
                 postProgress(id, 0.0)
 
                 renderVideo.render(
-                    videoBytes = videoBytes,
                     imageBytes = imageBytes,
                     inputFormat = inputFormat,
                     outputFormat = outputFormat,
+                    inputPath = inputPath,
                     outputPath = outputPath,
                     rotateTurns = rotateTurns,
                     flipX = flipX,

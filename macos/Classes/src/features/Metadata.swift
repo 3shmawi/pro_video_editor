@@ -3,12 +3,9 @@ import Foundation
 
 class VideoMetadata {
 
-    static func processVideo(videoData: Data, ext: String) async throws -> [String: Any] {
-        guard let tempFileURL = createTempFile(videoData: videoData, ext: ext) else {
-            return ["error": "Failed to create temp file"]
-        }
-
-        let asset = AVURLAsset(url: tempFileURL)
+    static func processVideo(inputPath: String, ext: String) async throws -> [String: Any] {
+       let tempFileURL = URL(fileURLWithPath: inputPath)
+       let asset = AVURLAsset(url: tempFileURL)
 
         // File size
         let fileSize: Int64
@@ -121,17 +118,6 @@ class VideoMetadata {
             "albumArtist": albumArtist,
             "date": dateStr,
         ]
-    }
-
-    private static func createTempFile(videoData: Data, ext: String) -> URL? {
-        let tempDir = FileManager.default.temporaryDirectory
-        let fileURL = tempDir.appendingPathComponent("vid.\(ext)")
-        do {
-            try videoData.write(to: fileURL)
-            return fileURL
-        } catch {
-            return nil
-        }
     }
 
     @available(macOS 13.0, *)

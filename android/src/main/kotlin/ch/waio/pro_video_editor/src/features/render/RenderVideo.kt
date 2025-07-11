@@ -38,10 +38,10 @@ import java.io.File
 @UnstableApi
 class RenderVideo(private val context: Context) {
     fun render(
-        videoBytes: ByteArray,
         imageBytes: ByteArray?,
         inputFormat: String,
         outputFormat: String,
+        inputPath: String,
         outputPath: String?,
         rotateTurns: Int?,
         flipX: Boolean = false,
@@ -63,10 +63,7 @@ class RenderVideo(private val context: Context) {
         onComplete: (ByteArray?) -> Unit,
         onError: (Throwable) -> Unit
     ) {
-        val inputFile =
-            File(context.cacheDir, "video_input_${System.currentTimeMillis()}.$inputFormat").apply {
-                writeBytes(videoBytes)
-            }
+        val inputFile = File(inputPath)
         val outputFile =
             if (outputPath != null) {
                 File(outputPath)
@@ -130,8 +127,7 @@ class RenderVideo(private val context: Context) {
                     } catch (e: Exception) {
                         onError(e)
                     } finally {
-                        inputFile.delete()
-                      if(outputPath == null)  outputFile.delete()
+                        if (outputPath == null) outputFile.delete()
                     }
                 }
 
@@ -142,8 +138,7 @@ class RenderVideo(private val context: Context) {
                 ) {
                     shouldStopPolling = true;
                     onError(exception)
-                    inputFile.delete()
-                   if(outputPath == null) outputFile.delete()
+                    if (outputPath == null) outputFile.delete()
                 }
             })
             .build()

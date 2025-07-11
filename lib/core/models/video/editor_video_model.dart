@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:path_provider/path_provider.dart';
+
 import '/core/platform/io/io_helper.dart';
 import '/shared/utils/converters.dart';
 import '/shared/utils/file_constructor_utils.dart';
@@ -101,7 +103,7 @@ class EditorVideo {
   Uint8List? byteArray;
 
   /// A `File` object representing the video file.
-  final File? file;
+  File? file;
 
   /// A URL string pointing to an video on the internet.
   final String? networkUrl;
@@ -129,19 +131,51 @@ class EditorVideo {
       case EditorVideoType.memory:
         return byteArray!;
       case EditorVideoType.asset:
-        bytes = await loadAssetImageAsUint8List(assetPath!);
+        bytes = await loadAssetVideoAsUint8List(assetPath!);
         break;
       case EditorVideoType.file:
         bytes = await readFileAsUint8List(file!);
         break;
       case EditorVideoType.network:
-        bytes = await fetchImageAsUint8List(networkUrl!);
+        bytes = await fetchVideoAsUint8List(networkUrl!);
         break;
     }
 
     byteArray = bytes;
 
     return bytes;
+  }
+
+  /// Safely generates a file path for the video and writes the video data to
+  /// a file based on the type of the video.
+  Future<String> safeFilePath() async {
+    String filePath = '';
+    File result;
+
+    if (typePreferredFile != EditorVideoType.file) {
+      final directory = await getTemporaryDirectory();
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      filePath = '${directory.path}/video_$now.mp4';
+    }
+
+    switch (typePreferredFile) {
+      case EditorVideoType.memory:
+        result = await writeMemoryVideoToFile(byteArray!, filePath);
+        break;
+      case EditorVideoType.asset:
+        result = await writeAssetVideoToFile(assetPath!, filePath);
+        break;
+      case EditorVideoType.file:
+        return file!.path;
+      case EditorVideoType.network:
+        result = await fetchVideoToFile(networkUrl!, filePath);
+        break;
+    }
+
+    file = result;
+
+    return result.path;
   }
 
   /// Returns the type of the video source.
@@ -151,8 +185,21 @@ class EditorVideo {
   EditorVideoType get type {
     if (hasBytes) {
       return EditorVideoType.memory;
-    } else if (hasFile) {
+    } else if (hasNetworkUrl) {
+      return EditorVideoType.network;
+    } else if (hasAssetPath) {
+      return EditorVideoType.asset;
+    } else {
       return EditorVideoType.file;
+    }
+  }
+
+  /// Determines the preferred type of the video based on its availability.
+  EditorVideoType get typePreferredFile {
+    if (hasFile) {
+      return EditorVideoType.file;
+    } else if (hasBytes) {
+      return EditorVideoType.memory;
     } else if (hasNetworkUrl) {
       return EditorVideoType.network;
     } else {
