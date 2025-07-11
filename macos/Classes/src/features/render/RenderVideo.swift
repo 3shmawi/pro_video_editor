@@ -38,10 +38,10 @@ class RenderVideo {
                 var outputURL: URL!
 
                 let finalize: () -> Void = {
-                    try? cleanup([outputURL])
+                    try? cleanup(outputPath == nil ? [outputURL] : [])
                 }
 
-                let handleCompletion: (Result<Data, Error>) -> Void = { result in
+                let handleCompletion: (Result<Data?, Error>) -> Void = { result in
                     switch result {
                     case .success(let data): onComplete(data)
                     case .failure(let error): onError(error)
@@ -156,7 +156,7 @@ class RenderVideo {
 
                     try await monitorExportProgress(export, onProgress: onProgress)
 
-                    if(outputPath != nil){
+                    if outputPath != nil {
                         handleCompletion(.success(nil))
                     } else {
                         let data = try Data(contentsOf: outputURL)
@@ -319,7 +319,7 @@ class RenderVideo {
     ) async throws {
         let updateInterval: TimeInterval = 0.2
         /*  if #available(macOS 15.0, *) {
-
+        
              for try await state in export.states(updateInterval: updateInterval) {
                  switch state {
                  case .waiting:
