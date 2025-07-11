@@ -139,6 +139,7 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
                 val endUs = call.argument<Number>("endTime")?.toLong()
                 val inputFormat = call.argument<String>("inputFormat") ?: "mp4"
                 val outputFormat = call.argument<String>("outputFormat") ?: "mp4"
+                val outputPath = call.argument<String>("outputPath")
                 val colorMatrixList = call.argument<List<List<Double>>>("colorMatrixList")
                     ?: emptyList<List<Double>>()
 
@@ -157,6 +158,7 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
                     imageBytes = imageBytes,
                     inputFormat = inputFormat,
                     outputFormat = outputFormat,
+                    outputPath = outputPath,
                     rotateTurns = rotateTurns,
                     flipX = flipX,
                     flipY = flipY,

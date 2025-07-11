@@ -65,6 +65,14 @@ class ProVideoEditorWeb extends ProVideoEditor {
   }
 
   @override
+  Future<String> renderVideoToFile(
+    String filePath,
+    RenderVideoModel value,
+  ) {
+    throw UnimplementedError('renderVideoToFile() has not been implemented.');
+  }
+
+  @override
   void initializeStream() {}
 
   void _updateProgress(String taskId, double progress) {

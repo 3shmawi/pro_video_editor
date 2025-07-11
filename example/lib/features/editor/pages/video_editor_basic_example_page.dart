@@ -217,6 +217,13 @@ class _VideoEditorBasicExamplePageState
   /// Applies blur, color filters, cropping, rotation, flipping, and trimming
   /// before exporting using FFmpeg. Measures and stores the generation time.
   Future<void> generateVideo(CompleteParameters parameters) async {
+    var editor = _editor.currentState!;
+    if (!editor.canRedo) {
+      var bytes = await _video.safeByteArray();
+      _exportedVideo = bytes;
+      return;
+    }
+
     final stopwatch = Stopwatch()..start();
 
     unawaited(_videoController.pause());
@@ -282,9 +289,12 @@ class _VideoEditorBasicExamplePageState
     );
   }
 
+  final _editor = GlobalKey<ProImageEditorState>();
+
   Widget _buildEditor() {
     return ProImageEditor.video(
       _proVideoController!,
+      key: _editor,
       callbacks: ProImageEditorCallbacks(
         onCompleteWithParameters: generateVideo,
         onCloseEditor: onCloseEditor,

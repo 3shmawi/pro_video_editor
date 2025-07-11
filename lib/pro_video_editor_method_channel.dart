@@ -97,6 +97,32 @@ class MethodChannelProVideoEditor extends ProVideoEditor {
   }
 
   @override
+  Future<String> renderVideoToFile(
+    String filePath,
+    RenderVideoModel value,
+  ) async {
+    final renderData = await value.toAsyncMap();
+    var extension = lookupMimeType(
+      '',
+      headerBytes: await value.video.safeByteArray(),
+    );
+    String inputFormat = 'mp4';
+    List<String>? sp = extension?.split('/');
+    if (sp?.length == 1) inputFormat = sp![1];
+
+    await methodChannel.invokeMethod<String>(
+      'renderVideo',
+      {
+        ...renderData,
+        'inputFormat': inputFormat,
+        'outputPath': filePath,
+      },
+    );
+
+    return filePath;
+  }
+
+  @override
   void initializeStream() {
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) return;
     _progressChannel.receiveBroadcastStream().map((event) {

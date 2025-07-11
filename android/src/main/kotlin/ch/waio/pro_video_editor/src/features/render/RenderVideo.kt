@@ -42,6 +42,7 @@ class RenderVideo(private val context: Context) {
         imageBytes: ByteArray?,
         inputFormat: String,
         outputFormat: String,
+        outputPath: String?,
         rotateTurns: Int?,
         flipX: Boolean = false,
         flipY: Boolean = false,
@@ -67,7 +68,14 @@ class RenderVideo(private val context: Context) {
                 writeBytes(videoBytes)
             }
         val outputFile =
-            File(context.cacheDir, "video_output_${System.currentTimeMillis()}.$outputFormat")
+            if (outputPath != null) {
+                File(outputPath)
+            } else {
+                File(
+                    context.cacheDir,
+                    "video_output_${System.currentTimeMillis()}.$outputFormat"
+                )
+            }
 
         val videoEffects = mutableListOf<Effect>()
         val audioEffects = mutableListOf<AudioProcessor>()
@@ -113,13 +121,17 @@ class RenderVideo(private val context: Context) {
                 override fun onCompleted(composition: Composition, result: ExportResult) {
                     shouldStopPolling = true;
                     try {
-                        val resultBytes = outputFile.readBytes()
-                        onComplete(resultBytes)
+                        if (outputPath != null) {
+                            onComplete(null)
+                        } else {
+                            val resultBytes = outputFile.readBytes()
+                            onComplete(resultBytes)
+                        }
                     } catch (e: Exception) {
                         onError(e)
                     } finally {
                         inputFile.delete()
-                        outputFile.delete()
+                      if(outputPath == null)  outputFile.delete()
                     }
                 }
 
@@ -131,7 +143,7 @@ class RenderVideo(private val context: Context) {
                     shouldStopPolling = true;
                     onError(exception)
                     inputFile.delete()
-                    outputFile.delete()
+                   if(outputPath == null) outputFile.delete()
                 }
             })
             .build()

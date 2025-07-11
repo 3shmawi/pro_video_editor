@@ -177,6 +177,14 @@ var data = RenderVideoModel(
 
 Uint8List result = await ProVideoEditor.instance.renderVideo(data);
 
+/// If you're rendering larger videos, it's better to write them directly to a file
+/// instead of returning them as a Uint8List, as this can overload your RAM.
+///
+/// final directory = await getTemporaryDirectory();
+/// String outputPath = '${directory.path}/my_video.mp4';
+/// 
+/// await ProVideoEditor.instance.renderVideoToFile('${directory.path}/my_video.mp4', data);
+
 /// Listen progress
 StreamBuilder<ProgressModel>(
     stream: ProVideoEditor.instance.progressStream,
@@ -186,6 +194,7 @@ StreamBuilder<ProgressModel>(
     }
 )
 ```
+
 
 #### Advanced Example
 ```dart

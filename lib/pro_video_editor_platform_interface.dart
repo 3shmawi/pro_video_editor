@@ -78,6 +78,14 @@ abstract class ProVideoEditor extends PlatformInterface {
     throw UnimplementedError('renderVideo() has not been implemented.');
   }
 
+  /// Renders a video to a file based on the provided [RenderVideoModel].
+  Future<String> renderVideoToFile(
+    String filePath,
+    RenderVideoModel value,
+  ) {
+    throw UnimplementedError('renderVideoToFile() has not been implemented.');
+  }
+
   /// Stream of progress updates from native video tasks.
   ///
   /// Emits [ProgressModel] updates for all running or completed tasks. Each

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
 import '/core/constants/example_filters.dart';
@@ -216,11 +217,18 @@ class _VideoRendererPageState extends State<VideoRendererPage> {
     _taskId = DateTime.now().microsecondsSinceEpoch.toString();
     setState(() => _isExporting = true);
 
+    final directory = await getTemporaryDirectory();
     var sp = Stopwatch()..start();
 
-    final result = await ProVideoEditor.instance.renderVideo(
+    final now = DateTime.now().millisecondsSinceEpoch;
+    String outputPath = '${directory.path}/my_video_$now.mp4';
+
+    await ProVideoEditor.instance.renderVideoToFile(
+      outputPath,
       value.copyWith(id: _taskId),
     );
+
+    final result = File(outputPath).readAsBytesSync();
 
     _generationTime = sp.elapsed;
 
@@ -228,7 +236,7 @@ class _VideoRendererPageState extends State<VideoRendererPage> {
       EditorVideo.memory(result),
     );
 
-    await _playerPreview.open(await Media.memory(result));
+    await _playerPreview.open(Media(outputPath));
     await _playerPreview.play();
 
     _isExporting = false;
