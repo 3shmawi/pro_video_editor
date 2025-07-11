@@ -22,7 +22,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
 
     case "getMetadata":
       guard let args = call.arguments as? [String: Any],
-        let videoBytes = args["videoBytes"] as? FlutterStandardTypedData,
+        let inputPath = args["inputPath"] as? String,
         let extensionStr = args["extension"] as? String
       else {
         result(
@@ -33,8 +33,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
 
       Task {
         do {
-          let meta = try await VideoMetadata.processVideo(
-            videoData: videoBytes.data, ext: extensionStr)
+          let meta = try await VideoMetadata.processVideo(inputPath: inputPath, ext: extensionStr)
           result(meta)
         } catch {
           result(
@@ -45,7 +44,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
     case "getThumbnails":
       guard let args = call.arguments as? [String: Any],
         let id = args["id"] as? String,
-        let videoBytes = (args["videoBytes"] as? FlutterStandardTypedData)?.data,
+        let inputPath = args["inputPath"] as? String,
         let extensionStr = args["extension"] as? String,
         let boxFit = args["boxFit"] as? String,
         let outputFormat = args["outputFormat"] as? String,
@@ -63,7 +62,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
 
       Task {
         let thumbnails = await ThumbnailGenerator.getThumbnails(
-          videoData: videoBytes,
+          inputPath: inputPath,
           extension: extensionStr,
           outputFormat: outputFormat,
           boxFit: boxFit,
@@ -82,12 +81,14 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
     case "renderVideo":
       guard let args = call.arguments as? [String: Any],
         let id = args["id"] as? String,
-        let videoBytes = (args["videoBytes"] as? FlutterStandardTypedData)?.data
+        let inputPath = args["inputPath"] as? String
       else {
-        result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing parameters", details: nil))
+        result(
+          FlutterError(
+            code: "INVALID_ARGUMENTS", message: "Missing parameters", details: nil))
         return
       }
-
+      
       let inputFormat = args["inputFormat"] as? String ?? "mp4"
       let outputFormat = args["outputFormat"] as? String ?? "mp4"
       let outputPath = args["outputPath"] as? String
@@ -112,7 +113,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
       postProgress(id: id, progress: 0.0)
 
       RenderVideo.render(
-        videoData: videoBytes,
+        inputPath: inputPath,
         imageData: imageBytes,
         inputFormat: inputFormat,
         outputFormat: outputFormat,

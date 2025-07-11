@@ -5,8 +5,10 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
     private var eventSink: FlutterEventSink?
 
     public static func register(with registrar: FlutterPluginRegistrar) {
-        let methodChannel = FlutterMethodChannel(name: "pro_video_editor", binaryMessenger: registrar.messenger)
-        let eventChannel = FlutterEventChannel(name: "pro_video_editor_progress", binaryMessenger: registrar.messenger)
+        let methodChannel = FlutterMethodChannel(
+            name: "pro_video_editor", binaryMessenger: registrar.messenger)
+        let eventChannel = FlutterEventChannel(
+            name: "pro_video_editor_progress", binaryMessenger: registrar.messenger)
 
         let instance = ProVideoEditorPlugin()
         registrar.addMethodCallDelegate(instance, channel: methodChannel)
@@ -15,7 +17,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
 
     let metadata = VideoMetadata()
     let renderQueue = DispatchQueue(label: "RenderQueue")
-    
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "getPlatformVersion":
@@ -23,31 +25,42 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
 
         case "getMetadata":
             guard let args = call.arguments as? [String: Any],
-                  let videoBytes = args["videoBytes"] as? FlutterStandardTypedData,
-                  let extensionStr = args["extension"] as? String else {
-                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Expected arguments missing", details: nil))
+                let inputPath = args["inputPath"] as? String,
+                let extensionStr = args["extension"] as? String
+            else {
+                result(
+                    FlutterError(
+                        code: "INVALID_ARGUMENTS", message: "Expected arguments missing",
+                        details: nil))
                 return
             }
 
             Task {
                 do {
-                    let meta = try await VideoMetadata.processVideo(videoData: videoBytes.data, ext: extensionStr)
+                    let meta = try await VideoMetadata.processVideo(
+                        inputPath: inputPath, ext: extensionStr)
                     result(meta)
                 } catch {
-                    result(FlutterError(code: "METADATA_ERROR", message: error.localizedDescription, details: nil))
+                    result(
+                        FlutterError(
+                            code: "METADATA_ERROR", message: error.localizedDescription,
+                            details: nil))
                 }
             }
 
         case "getThumbnails":
             guard let args = call.arguments as? [String: Any],
-                  let id = args["id"] as? String,
-                  let videoBytes = (args["videoBytes"] as? FlutterStandardTypedData)?.data,
-                  let extensionStr = args["extension"] as? String,
-                  let boxFit = args["boxFit"] as? String,
-                  let outputFormat = args["outputFormat"] as? String,
-                  let outputWidth = args["outputWidth"] as? Int,
-                  let outputHeight = args["outputHeight"] as? Int else {
-                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing parameters", details: nil))
+                let id = args["id"] as? String,
+                let inputPath = args["inputPath"] as? String,
+                let extensionStr = args["extension"] as? String,
+                let boxFit = args["boxFit"] as? String,
+                let outputFormat = args["outputFormat"] as? String,
+                let outputWidth = args["outputWidth"] as? Int,
+                let outputHeight = args["outputHeight"] as? Int
+            else {
+                result(
+                    FlutterError(
+                        code: "INVALID_ARGUMENTS", message: "Missing parameters", details: nil))
                 return
             }
 
@@ -58,7 +71,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
 
             Task {
                 let thumbnails = await ThumbnailGenerator.getThumbnails(
-                    videoData: videoBytes,
+                    inputPath: inputPath,
                     extension: extensionStr,
                     outputFormat: outputFormat,
                     boxFit: boxFit,
@@ -76,9 +89,12 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
 
         case "renderVideo":
             guard let args = call.arguments as? [String: Any],
-                  let id = args["id"] as? String,
-                  let videoBytes = (args["videoBytes"] as? FlutterStandardTypedData)?.data else {
-                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing parameters", details: nil))
+                let id = args["id"] as? String,
+                let inputPath = args["inputPath"] as? String
+            else {
+                result(
+                    FlutterError(
+                        code: "INVALID_ARGUMENTS", message: "Missing parameters", details: nil))
                 return
             }
 
@@ -106,7 +122,7 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
             postProgress(id: id, progress: 0.0)
 
             RenderVideo.render(
-                videoData: videoBytes,
+                inputPath: inputPath,
                 imageData: imageBytes,
                 inputFormat: inputFormat,
                 outputFormat: outputFormat,
@@ -135,7 +151,10 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
                     result(outputData)
                 },
                 onError: { error in
-                    result(FlutterError(code: "RENDER_ERROR", message: error.localizedDescription, details: nil))
+                    result(
+                        FlutterError(
+                            code: "RENDER_ERROR", message: error.localizedDescription, details: nil)
+                    )
                 }
             )
 
@@ -148,14 +167,16 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin {
         DispatchQueue.main.async {
             self.eventSink?([
                 "id": id,
-                "progress": progress
+                "progress": progress,
             ])
         }
     }
 }
 
 extension ProVideoEditorPlugin: FlutterStreamHandler {
-    public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+    public func onListen(
+        withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink
+    ) -> FlutterError? {
         self.eventSink = events
         return nil
     }
