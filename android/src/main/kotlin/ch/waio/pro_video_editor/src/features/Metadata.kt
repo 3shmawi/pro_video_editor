@@ -39,9 +39,13 @@ class Metadata(private val context: Context) {
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
             val bitrateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
 
+            fun parseDimension(value: String?) = value?.toIntOrNull() ?: 0
+            
+            val isNormalRotation = rotation % 180 == 0
+            width = parseDimension(if (isNormalRotation) widthStr else heightStr)
+            height = parseDimension(if (isNormalRotation) heightStr else widthStr)
+            
             durationMs = durationStr?.toDoubleOrNull() ?: 0.0
-            width = widthStr?.toIntOrNull() ?: 0
-            height = heightStr?.toIntOrNull() ?: 0
             rotation = rotationStr?.toIntOrNull() ?: 0
             bitrate = bitrateStr?.toIntOrNull() ?: 0
 
