@@ -4,6 +4,10 @@
 ## 0.2.0
 - **FEAT**: Add `renderVideoToFile` to return the file path instead of a Uint8List, preventing RAM overload on older devices or when handling larger videos.
 
+## 0.1.8
+- **FIX**(android): Fixed crash during video export when applying overlay effects. The issue was caused by using `ImmutableList.of(bitmapOverlay)` instead of a Kotlin-compatible list. This has been resolved by using `listOf(bitmapOverlay)` instead.
+- **CHORE**(android): Updated `media3` dependencies to the latest stable versions for better compatibility and stability.
+
 ## 0.1.7
 - **FIX**(iOS, macOS): Resolved a crash that occurred when setting playback speed below 1x. This resolves issue [#29](https://github.com/hm21/pro_video_editor/issues/29).
 
