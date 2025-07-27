@@ -10,6 +10,7 @@ class VideoMetadata {
     required this.duration,
     required this.extension,
     required this.fileSize,
+    required this.originalResolution,
     required this.resolution,
     required this.rotation,
     required this.bitrate,
@@ -27,15 +28,21 @@ class VideoMetadata {
   /// file size, and others.
   /// The [extension] is the video file format (e.g., 'mp4').
   factory VideoMetadata.fromMap(Map<dynamic, dynamic> value, String extension) {
+    final originalResolution = Size(
+      safeParseDouble(value['width']),
+      safeParseDouble(value['height']),
+    );
+    int rotation = safeParseInt(value['rotation']);
+    bool isNormalRotated = rotation % 180 == 0;
+
     return VideoMetadata(
       duration: Duration(milliseconds: safeParseInt(value['duration'])),
       extension: extension,
       fileSize: value['fileSize'] ?? 0,
-      resolution: Size(
-        safeParseDouble(value['width']),
-        safeParseDouble(value['height']),
-      ),
-      rotation: safeParseInt(value['rotation']),
+      resolution:
+          isNormalRotated ? originalResolution : originalResolution.flipped,
+      originalResolution: originalResolution,
+      rotation: rotation,
       bitrate: safeParseInt(value['bitrate']),
       title: value['title'] ?? '',
       artist: value['artist'] ?? '',
@@ -69,13 +76,31 @@ class VideoMetadata {
   /// The size of the video file in bytes.
   final int fileSize;
 
-  /// The resolution of the video, represented as a [Size] object.
+  /// The effective display resolution of the video, represented as a [Size]
+  /// object.
+  ///
+  /// If the video is rotated by 90°, 270°, 450°, etc., the width and height
+  /// values are automatically swapped to reflect the actual orientation as
+  /// it appears in the video player.
+  ///
+  /// To retrieve the original, unrotated resolution, use [originalResolution].
   ///
   /// Example:
   /// ```dart
   /// Size(1920, 1080) // Full HD resolution
   /// ```
   final Size resolution;
+
+  /// The original resolution of the video before any rotation is applied.
+  ///
+  /// Unlike [resolution], this value always represents the actual pixel
+  /// dimensions of the video file, regardless of its orientation.
+  ///
+  /// Example:
+  /// ```dart
+  /// Size(1080, 1920) // Portrait video in raw file
+  /// ```
+  final Size originalResolution;
 
   /// The rotation of the video.
   final int rotation;
@@ -101,19 +126,33 @@ class VideoMetadata {
 
   /// Returns a copy of this config with the given fields replaced.
   VideoMetadata copyWith({
+    String? title,
+    String? artist,
+    String? author,
+    String? album,
+    String? albumArtist,
+    DateTime? date,
     int? fileSize,
     Size? resolution,
+    Size? originalResolution,
+    int? rotation,
     Duration? duration,
     String? extension,
-    int? rotation,
     int? bitrate,
   }) {
     return VideoMetadata(
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      author: author ?? this.author,
+      album: album ?? this.album,
+      albumArtist: albumArtist ?? this.albumArtist,
+      date: date ?? this.date,
       fileSize: fileSize ?? this.fileSize,
       resolution: resolution ?? this.resolution,
+      originalResolution: originalResolution ?? this.originalResolution,
+      rotation: rotation ?? this.rotation,
       duration: duration ?? this.duration,
       extension: extension ?? this.extension,
-      rotation: rotation ?? this.rotation,
       bitrate: bitrate ?? this.bitrate,
     );
   }
@@ -123,19 +162,35 @@ class VideoMetadata {
     if (identical(this, other)) return true;
 
     return other is VideoMetadata &&
+        other.title == title &&
+        other.artist == artist &&
+        other.author == author &&
+        other.album == album &&
+        other.albumArtist == albumArtist &&
+        other.date == date &&
         other.fileSize == fileSize &&
         other.resolution == resolution &&
+        other.originalResolution == originalResolution &&
+        other.rotation == rotation &&
         other.duration == duration &&
         other.extension == extension &&
-        other.rotation == rotation;
+        other.bitrate == bitrate;
   }
 
   @override
   int get hashCode {
-    return fileSize.hashCode ^
+    return title.hashCode ^
+        artist.hashCode ^
+        author.hashCode ^
+        album.hashCode ^
+        albumArtist.hashCode ^
+        date.hashCode ^
+        fileSize.hashCode ^
         resolution.hashCode ^
+        originalResolution.hashCode ^
+        rotation.hashCode ^
         duration.hashCode ^
         extension.hashCode ^
-        rotation.hashCode;
+        bitrate.hashCode;
   }
 }

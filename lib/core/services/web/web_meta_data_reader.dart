@@ -63,16 +63,21 @@ class WebMetaDataReader {
     });
 
     final result = await completer.future;
+    final originalResolution = Size(
+      safeParseDouble(result['width']),
+      safeParseDouble(result['height']),
+    );
+    int rotation = safeParseInt(result['rotation']);
+    bool isNormalRotated = rotation % 180 == 0;
 
     return VideoMetadata(
       duration: Duration(milliseconds: safeParseInt(result['duration'])),
       extension: result['extension'] ?? 'unknown',
       fileSize: safeParseInt(result['fileSize']),
-      resolution: Size(
-        safeParseDouble(result['width']),
-        safeParseDouble(result['height']),
-      ),
-      rotation: safeParseInt(result['rotation']),
+      resolution:
+          isNormalRotated ? originalResolution : originalResolution.flipped,
+      originalResolution: originalResolution,
+      rotation: rotation,
       bitrate: safeParseInt(result['bitrate']),
       title: result['title'] ?? '',
       artist: result['artist'] ?? '',

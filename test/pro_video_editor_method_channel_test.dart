@@ -62,8 +62,13 @@ void main() {
     final result = await platform.getMetadata(mockVideo);
 
     expect(result.duration.inMilliseconds, 1200);
-    expect(result.resolution.width, 1920);
-    expect(result.resolution.height, 1080);
+
+    expect(result.resolution.width, 1080);
+    expect(result.resolution.height, 1920);
+
+    expect(result.originalResolution.width, 1920);
+    expect(result.originalResolution.height, 1080);
+
     expect(result.rotation, 90);
     expect(result.extension, 'mp4');
   });
