@@ -3,7 +3,7 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i6;
+import 'dart:async' as _i7;
 import 'dart:typed_data' as _i5;
 import 'dart:ui' as _i3;
 
@@ -15,7 +15,8 @@ import 'package:pro_video_editor/core/models/thumbnail/thumbnail_format.model.da
     as _i9;
 import 'package:pro_video_editor/core/models/video/editor_video_model.dart'
     as _i2;
-import 'package:pro_video_editor/core/platform/io/io_helper.dart' as _i7;
+import 'package:pro_video_editor/core/models/video/progress_model.dart' as _i11;
+import 'package:pro_video_editor/core/platform/io/io_helper.dart' as _i6;
 import 'package:pro_video_editor/pro_video_editor.dart' as _i4;
 
 // ignore_for_file: type=lint
@@ -102,6 +103,12 @@ class MockEditorVideo extends _i1.Mock implements _i2.EditorVideo {
       ) as _i2.EditorVideoType);
 
   @override
+  _i2.EditorVideoType get typePreferredFile => (super.noSuchMethod(
+        Invocation.getter(#typePreferredFile),
+        returnValue: _i2.EditorVideoType.file,
+      ) as _i2.EditorVideoType);
+
+  @override
   set byteArray(_i5.Uint8List? _byteArray) => super.noSuchMethod(
         Invocation.setter(
           #byteArray,
@@ -111,18 +118,42 @@ class MockEditorVideo extends _i1.Mock implements _i2.EditorVideo {
       );
 
   @override
-  _i6.Future<_i5.Uint8List> safeByteArray() => (super.noSuchMethod(
+  set file(_i6.File? _file) => super.noSuchMethod(
+        Invocation.setter(
+          #file,
+          _file,
+        ),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  _i7.Future<_i5.Uint8List> safeByteArray() => (super.noSuchMethod(
         Invocation.method(
           #safeByteArray,
           [],
         ),
-        returnValue: _i6.Future<_i5.Uint8List>.value(_i5.Uint8List(0)),
-      ) as _i6.Future<_i5.Uint8List>);
+        returnValue: _i7.Future<_i5.Uint8List>.value(_i5.Uint8List(0)),
+      ) as _i7.Future<_i5.Uint8List>);
+
+  @override
+  _i7.Future<String> safeFilePath() => (super.noSuchMethod(
+        Invocation.method(
+          #safeFilePath,
+          [],
+        ),
+        returnValue: _i7.Future<String>.value(_i8.dummyValue<String>(
+          this,
+          Invocation.method(
+            #safeFilePath,
+            [],
+          ),
+        )),
+      ) as _i7.Future<String>);
 
   @override
   _i2.EditorVideo copyWith({
     _i5.Uint8List? byteArray,
-    _i7.File? file,
+    _i6.File? file,
     String? networkUrl,
     String? assetPath,
   }) =>
@@ -207,6 +238,12 @@ class MockThumbnailConfigs extends _i1.Mock implements _i4.ThumbnailConfigs {
       ) as _i10.ThumbnailBoxFit);
 
   @override
+  _i7.Stream<_i11.ProgressModel> get progressStream => (super.noSuchMethod(
+        Invocation.getter(#progressStream),
+        returnValue: _i7.Stream<_i11.ProgressModel>.empty(),
+      ) as _i7.Stream<_i11.ProgressModel>);
+
+  @override
   Map<String, dynamic> toMap() => (super.noSuchMethod(
         Invocation.method(
           #toMap,
@@ -270,6 +307,12 @@ class MockKeyFramesConfigs extends _i1.Mock implements _i4.KeyFramesConfigs {
       ) as _i10.ThumbnailBoxFit);
 
   @override
+  _i7.Stream<_i11.ProgressModel> get progressStream => (super.noSuchMethod(
+        Invocation.getter(#progressStream),
+        returnValue: _i7.Stream<_i11.ProgressModel>.empty(),
+      ) as _i7.Stream<_i11.ProgressModel>);
+
+  @override
   Map<String, dynamic> toMap() => (super.noSuchMethod(
         Invocation.method(
           #toMap,
@@ -324,20 +367,20 @@ class MockRenderVideoModel extends _i1.Mock implements _i4.RenderVideoModel {
       ) as List<List<double>>);
 
   @override
-  _i6.Stream<_i4.ProgressModel> get progressStream => (super.noSuchMethod(
+  _i7.Stream<_i11.ProgressModel> get progressStream => (super.noSuchMethod(
         Invocation.getter(#progressStream),
-        returnValue: _i6.Stream<_i4.ProgressModel>.empty(),
-      ) as _i6.Stream<_i4.ProgressModel>);
+        returnValue: _i7.Stream<_i11.ProgressModel>.empty(),
+      ) as _i7.Stream<_i11.ProgressModel>);
 
   @override
-  _i6.Future<Map<String, dynamic>> toAsyncMap() => (super.noSuchMethod(
+  _i7.Future<Map<String, dynamic>> toAsyncMap() => (super.noSuchMethod(
         Invocation.method(
           #toAsyncMap,
           [],
         ),
         returnValue:
-            _i6.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
-      ) as _i6.Future<Map<String, dynamic>>);
+            _i7.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
+      ) as _i7.Future<Map<String, dynamic>>);
 
   @override
   _i4.RenderVideoModel copyWith({

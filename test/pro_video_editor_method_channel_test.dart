@@ -18,9 +18,14 @@ void main() {
 
   final MethodChannelProVideoEditor platform = MethodChannelProVideoEditor();
   const MethodChannel channel = MethodChannel('pro_video_editor');
+  final mockVideo = MockEditorVideo();
   final mockBytes = Uint8List.fromList([0x00, 0x01]);
+  const mockFilePath = '';
 
   setUp(() {
+    when(mockVideo.safeFilePath()).thenAnswer((_) async => mockFilePath);
+    when(mockVideo.safeByteArray()).thenAnswer((_) async => mockBytes);
+
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
       switch (methodCall.method) {
@@ -54,9 +59,6 @@ void main() {
   });
 
   test('getMetadata returns correct metadata', () async {
-    final mockVideo = MockEditorVideo();
-    when(mockVideo.safeByteArray()).thenAnswer((_) async => mockBytes);
-
     final result = await platform.getMetadata(mockVideo);
 
     expect(result.duration.inMilliseconds, 1200);
@@ -68,11 +70,9 @@ void main() {
 
   test('getThumbnails returns list of Uint8List', () async {
     final mockConfig = MockThumbnailConfigs();
-    final mockVideo = MockEditorVideo();
 
     when(mockConfig.video).thenReturn(mockVideo);
     when(mockConfig.toMap()).thenReturn({});
-    when(mockVideo.safeByteArray()).thenAnswer((_) async => mockBytes);
 
     final thumbnails = await platform.getThumbnails(mockConfig);
     expect(thumbnails.length, 2);
@@ -81,11 +81,9 @@ void main() {
 
   test('getKeyFrames returns list of Uint8List', () async {
     final mockConfig = MockKeyFramesConfigs();
-    final mockVideo = MockEditorVideo();
 
     when(mockConfig.video).thenReturn(mockVideo);
     when(mockConfig.toMap()).thenReturn({});
-    when(mockVideo.safeByteArray()).thenAnswer((_) async => mockBytes);
 
     final keyframes = await platform.getKeyFrames(mockConfig);
     expect(keyframes.length, 2);
@@ -94,11 +92,11 @@ void main() {
 
   test('renderVideo returns rendered video bytes', () async {
     final mockModel = MockRenderVideoModel();
-    final mockVideo = MockEditorVideo();
 
     when(mockModel.video).thenReturn(mockVideo);
-    when(mockModel.toAsyncMap()).thenAnswer((_) async => {});
-    when(mockVideo.safeByteArray()).thenAnswer((_) async => mockBytes);
+    when(mockModel.toAsyncMap()).thenAnswer((_) async => {
+          'inputPath': 'test.mp4',
+        });
 
     final result = await platform.renderVideo(mockModel);
     expect(result, isA<Uint8List>());
@@ -115,8 +113,9 @@ void main() {
     final mockVideo = MockEditorVideo();
 
     when(mockModel.video).thenReturn(mockVideo);
-    when(mockModel.toAsyncMap()).thenAnswer((_) async => {});
-    when(mockVideo.safeByteArray()).thenAnswer((_) async => mockBytes);
+    when(mockModel.toAsyncMap()).thenAnswer((_) async => {
+          'inputPath': 'test.mp4',
+        });
 
     expect(
         () async => await platform.renderVideo(mockModel), throwsArgumentError);
