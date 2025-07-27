@@ -1,3 +1,6 @@
+## 0.2.2
+- **FEAT**(metadata): Add `originalResolution` to metadata and auto-correct `resolution` based on video orientation
+
 ## 0.2.1
 - **FIX**(android): Resolved issue where metadata returned incorrect resolution for rotated videos. This resolves issue [#42](https://github.com/hm21/pro_video_editor/issues/42).
 
