@@ -17,61 +17,45 @@ namespace pro_video_editor {
 void HandleGetMetadata(
     const flutter::EncodableMap& args,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-    
-    auto itVideo = args.find(flutter::EncodableValue("videoBytes"));
-    if (itVideo == args.end()) {
-        result->Error("InvalidArgument", "Missing videoBytes");
+
+    auto itPath = args.find(flutter::EncodableValue("inputPath"));
+    if (itPath == args.end()) {
+        result->Error("InvalidArgument", "Missing inputPath");
         return;
     }
-    const auto* videoBytes = std::get_if<std::vector<uint8_t>>(&itVideo->second);
-    if (!videoBytes) {
-        result->Error("InvalidArgument", "Invalid videoBytes format");
+    const auto* pathStr = std::get_if<std::string>(&itPath->second);
+    if (!pathStr) {
+        result->Error("InvalidArgument", "Invalid inputPath format");
         return;
     }
 
-    auto itExt = args.find(flutter::EncodableValue("extension"));
-    if (itExt == args.end()) {
-        result->Error("InvalidArgument", "Missing extension");
-        return;
-    }
-    const auto* extStr = std::get_if<std::string>(&itExt->second);
-    if (!extStr) {
-        result->Error("InvalidArgument", "Invalid extension format");
-        return;
-    }
-
-    char tempName[] = "/tmp/pro_video_XXXXXX";
-    int fd = mkstemp(tempName);
-    if (fd == -1) {
-        result->Error("FileError", "Failed to create temp file");
-        return;
-    }
-    write(fd, videoBytes->data(), videoBytes->size());
-    close(fd);
+    std::string inputPath = *pathStr;
 
     struct stat file_stat;
     int64_t fileSize = 0;
     std::string dateStr;
-    if (stat(tempName, &file_stat) == 0) {
+    if (stat(inputPath.c_str(), &file_stat) == 0) {
         fileSize = file_stat.st_size;
 
         char buffer[64];
         std::tm* tm = std::localtime(&file_stat.st_ctime);
         std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", tm);
         dateStr = buffer;
+    } else {
+        result->Error("FileError", "Failed to stat file");
+        return;
     }
 
     gst_init(nullptr, nullptr);
 
     GstDiscoverer* discoverer = gst_discoverer_new(5 * GST_SECOND, nullptr);
     if (!discoverer) {
-        unlink(tempName);
         result->Error("GStreamerError", "Failed to create discoverer");
         return;
     }
 
-    GstDiscovererInfo* info = gst_discoverer_discover_uri(discoverer, ("file://" + std::string(tempName)).c_str(), nullptr);
-    unlink(tempName);
+    std::string uri = "file://" + inputPath;
+    GstDiscovererInfo* info = gst_discoverer_discover_uri(discoverer, uri.c_str(), nullptr);
 
     if (!info) {
         g_object_unref(discoverer);
@@ -110,7 +94,7 @@ void HandleGetMetadata(
     result_map[flutter::EncodableValue("duration")] = flutter::EncodableValue(duration_ms);
     result_map[flutter::EncodableValue("width")] = flutter::EncodableValue(width);
     result_map[flutter::EncodableValue("height")] = flutter::EncodableValue(height);
-    result_map[flutter::EncodableValue("rotation")] = flutter::EncodableValue(rotation);
+    result_map[flutter::EncodableValue("rotation")] = flutter::EncodableValue(rotation);  // Rotation not available via GStreamer tags directly
     result_map[flutter::EncodableValue("bitrate")] = flutter::EncodableValue(bitrate);
     result_map[flutter::EncodableValue("title")] = flutter::EncodableValue(title ? title : "");
     result_map[flutter::EncodableValue("artist")] = flutter::EncodableValue("");
