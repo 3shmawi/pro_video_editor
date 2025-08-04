@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pro_image_editor/designs/grounded/grounded_design.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/core/platform/io/io_helper.dart';
@@ -71,8 +72,7 @@ class _VideoEditorGroundedExamplePageState
   /// The video currently loaded in the editor.
   final _video = EditorVideo.asset(kVideoEditorExampleAssetPath);
 
-  /// The result of the video export process, if completed.
-  Uint8List? _exportedVideo;
+  String? _outputPath;
 
   /// The duration it took to generate the exported video.
   Duration _videoGenerationTime = Duration.zero;
@@ -255,28 +255,33 @@ class _VideoEditorGroundedExamplePageState
       // bitrate: _videoMetadata.bitrate,
     );
 
-    _exportedVideo = await ProVideoEditor.instance.renderVideo(exportModel);
+    final directory = await getTemporaryDirectory();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _outputPath = await ProVideoEditor.instance.renderVideoToFile(
+      '${directory.path}/my_video_$now.mp4',
+      exportModel,
+    );
     _videoGenerationTime = stopwatch.elapsed;
   }
 
   /// Closes the video editor and opens a preview screen if a video was
   /// exported.
   ///
-  /// If [_exportedVideo] is available, it navigates to [PreviewVideo].
+  /// If [_outputPath] is available, it navigates to [PreviewVideo].
   /// Afterwards, it pops the current editor page.
   void onCloseEditor(EditorMode editorMode) async {
     if (editorMode != EditorMode.main) return Navigator.pop(context);
-    if (_exportedVideo != null) {
+    if (_outputPath != null) {
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => PreviewVideo(
-            bytes: _exportedVideo!,
+            filePath: _outputPath!,
             generationTime: _videoGenerationTime,
           ),
         ),
       );
-      _exportedVideo = null;
+      _outputPath = null;
     } else {
       return Navigator.pop(context);
     }
@@ -354,11 +359,17 @@ class _VideoEditorGroundedExamplePageState
           ),
           mainEditor: MainEditorConfigs(
             widgets: MainEditorWidgets(
-              removeLayerArea: (removeAreaKey, editor, rebuildStream) =>
+              removeLayerArea: (
+                removeAreaKey,
+                editor,
+                rebuildStream,
+                isLayerBeingTransformed,
+              ) =>
                   VideoEditorRemoveArea(
                 removeAreaKey: removeAreaKey,
                 editor: editor,
                 rebuildStream: rebuildStream,
+                isLayerBeingTransformed: isLayerBeingTransformed,
               ),
               appBar: (editor, rebuildStream) => null,
               bottomBar: (editor, rebuildStream, key) => ReactiveWidget(
@@ -419,7 +430,7 @@ class _VideoEditorGroundedExamplePageState
                                   onPressed: () {
                                     if (newColor != null) {
                                       setState(() =>
-                                          editorState.colorChanged(newColor!));
+                                          editorState.setColor(newColor!));
                                     }
                                     Navigator.of(context).pop();
                                   },
