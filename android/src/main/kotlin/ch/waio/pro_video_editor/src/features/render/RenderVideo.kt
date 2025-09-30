@@ -111,7 +111,12 @@ class RenderVideo(private val context: Context) {
         applyBitrate(encoderFactoryBuilder, outputMimeType, bitrate)
 
 
-        val transformer = Transformer.Builder(context)
+        val mainHandler = Handler(Looper.getMainLooper())
+
+        // Declare it before so it's visible in the listener
+        lateinit var transformer: Transformer
+
+        transformer = Transformer.Builder(context)
             .setEncoderFactory(encoderFactoryBuilder.build())
             .setVideoMimeType(outputMimeType)
             .addListener(object : Transformer.Listener {
@@ -127,6 +132,7 @@ class RenderVideo(private val context: Context) {
                     } catch (e: Exception) {
                         onError(e)
                     } finally {
+                        mainHandler.removeCallbacksAndMessages(null) // stop progress polling
                         if (outputPath == null) outputFile.delete()
                     }
                 }
@@ -148,7 +154,6 @@ class RenderVideo(private val context: Context) {
 
         // Progress tracking setup
         val progressHolder = ProgressHolder()
-        val mainHandler = Handler(Looper.getMainLooper())
 
         mainHandler.post(object : Runnable {
             override fun run() {
