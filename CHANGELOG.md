@@ -1,3 +1,6 @@
+## 0.2.4
+- **CHORE**(android): Update Media3 dependencies to version 1.8.0.
+
 ## 0.2.3
 - **FIX**(windows): Resolve issue of crashing when reading metadata on Windows.
 
