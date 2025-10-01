@@ -24,8 +24,9 @@ void main() {
       );
 
       expect(model.bitrate, equals(3000000)); // 3 Mbps
-      expect(model.transform?.scaleX, equals(1280));
-      expect(model.transform?.scaleY, equals(720));
+      final resolution = model.qualityConfig?.resolution;
+      expect(resolution?.width, equals(1280));
+      expect(resolution?.height, equals(720));
     });
 
     test('creates model with 4K quality preset', () {
@@ -35,8 +36,9 @@ void main() {
       );
 
       expect(model.bitrate, equals(35000000)); // 35 Mbps
-      expect(model.transform?.scaleX, equals(3840));
-      expect(model.transform?.scaleY, equals(2160));
+      final resolution = model.qualityConfig?.resolution;
+      expect(resolution?.width, equals(3840));
+      expect(resolution?.height, equals(2160));
     });
 
     test('allows bitrate override', () {
@@ -107,8 +109,9 @@ void main() {
       );
 
       expect(model.bitrate, equals(1000000)); // 1 Mbps
-      expect(model.transform?.scaleX, equals(640));
-      expect(model.transform?.scaleY, equals(360));
+      final resolution = model.qualityConfig?.resolution;
+      expect(resolution?.width, equals(640));
+      expect(resolution?.height, equals(360));
     });
 
     test('creates model with ultra 4K preset', () {
@@ -118,8 +121,9 @@ void main() {
       );
 
       expect(model.bitrate, equals(45000000)); // 45 Mbps
-      expect(model.transform?.scaleX, equals(3840));
-      expect(model.transform?.scaleY, equals(2160));
+      final resolution = model.qualityConfig?.resolution;
+      expect(resolution?.width, equals(3840));
+      expect(resolution?.height, equals(2160));
     });
 
     test('custom preset does not set transform', () {

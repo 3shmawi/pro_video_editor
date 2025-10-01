@@ -19,6 +19,7 @@ class RenderVideoModel {
     this.blur,
     this.bitrate,
     this.colorMatrixList = const [],
+    this.qualityConfig,
     String? id,
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         assert(
@@ -73,25 +74,12 @@ class RenderVideoModel {
   }) {
     final qualityConfig = VideoQualityConfig.fromPreset(qualityPreset);
 
-    // If quality preset has a resolution and no transform is provided,
-    // create a transform with the preset's scale
-    ExportTransform? finalTransform = transform;
-    if (qualityConfig.resolution != null && transform == null) {
-      // Note: The actual scaling will need to be calculated based on the
-      // original video dimensions. Here we just pass the target resolution
-      // as scale factors. Users can override this with their own transform.
-      finalTransform = ExportTransform(
-        scaleX: qualityConfig.resolution!.width,
-        scaleY: qualityConfig.resolution!.height,
-      );
-    }
-
     return RenderVideoModel(
       id: id,
       outputFormat: outputFormat,
       video: video,
       imageBytes: imageBytes,
-      transform: finalTransform,
+      transform: transform,
       enableAudio: enableAudio,
       playbackSpeed: playbackSpeed,
       startTime: startTime,
@@ -99,11 +87,15 @@ class RenderVideoModel {
       blur: blur,
       bitrate: bitrateOverride ?? qualityConfig.bitrate,
       colorMatrixList: colorMatrixList,
+      qualityConfig: qualityConfig,
     );
   }
 
   /// Unique ID for the task, useful when running multiple tasks at once.
   final String id;
+
+  /// Configuration class that defines video quality parameters.
+  final VideoQualityConfig? qualityConfig;
 
   /// The target format for the exported video.
   final VideoOutputFormat outputFormat;
@@ -176,27 +168,34 @@ class RenderVideoModel {
   Future<Map<String, dynamic>> toAsyncMap() async {
     var transform = this.transform ?? const ExportTransform();
 
+    double? scaleX = transform.scaleX;
+    double? scaleY = transform.scaleY;
+
+    if (qualityConfig != null && scaleX == null && scaleY == null) {
+      final meta = await ProVideoEditor.instance.getMetadata(video);
+      final originalResolution = meta.resolution;
+      final targetResolution = qualityConfig!.resolution ?? originalResolution;
+      scaleX = targetResolution.width / originalResolution.width;
+      scaleY = targetResolution.height / originalResolution.height;
+    }
+
+    String inputPath = await video.safeFilePath();
+
     return {
+      ...transform.toMap(),
       'id': id,
-      'inputPath': await video.safeFilePath(),
+      'inputPath': inputPath,
       'imageBytes': imageBytes,
-      'rotateTurns': transform.rotateTurns,
-      'flipX': transform.flipX,
-      'flipY': transform.flipY,
       'enableAudio': enableAudio,
       'playbackSpeed': playbackSpeed,
       'startTime': startTime?.inMicroseconds,
       'endTime': endTime?.inMicroseconds,
-      'cropWidth': transform.width,
-      'cropHeight': transform.height,
-      'cropX': transform.x,
-      'cropY': transform.y,
-      'scaleX': transform.scaleX,
-      'scaleY': transform.scaleY,
       'colorMatrixList': colorMatrixList,
       'outputFormat': outputFormat.name,
       'blur': blur,
       'bitrate': bitrate,
+      'scaleX': scaleX,
+      'scaleY': scaleY,
     };
   }
 
@@ -214,6 +213,7 @@ class RenderVideoModel {
     List<List<double>>? colorMatrixList,
     double? blur,
     int? bitrate,
+    VideoQualityConfig? qualityConfig,
   }) {
     return RenderVideoModel(
       id: id ?? this.id,
@@ -228,6 +228,7 @@ class RenderVideoModel {
       colorMatrixList: colorMatrixList ?? this.colorMatrixList,
       blur: blur ?? this.blur,
       bitrate: bitrate ?? this.bitrate,
+      qualityConfig: qualityConfig ?? this.qualityConfig,
     );
   }
 }
