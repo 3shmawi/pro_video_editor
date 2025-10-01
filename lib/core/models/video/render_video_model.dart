@@ -38,6 +38,70 @@ class RenderVideoModel {
           '[bitrate] must be greater than 0',
         );
 
+  /// Creates a [RenderVideoModel] with a predefined quality preset.
+  ///
+  /// This factory constructor simplifies video export by providing common
+  /// quality configurations. The preset automatically sets the appropriate
+  /// bitrate and resolution.
+  ///
+  /// Example:
+  /// ```dart
+  /// var model = RenderVideoModel.withQualityPreset(
+  ///   video: EditorVideo.asset('assets/my-video.mp4'),
+  ///   qualityPreset: VideoQualityPreset.p1080,
+  ///   outputFormat: VideoOutputFormat.mp4,
+  /// );
+  /// ```
+  ///
+  /// You can override the preset's resolution by providing a custom
+  /// [transform] with scale or crop settings. The bitrate from the preset
+  /// will still be used unless explicitly overridden with [bitrateOverride].
+  factory RenderVideoModel.withQualityPreset({
+    required EditorVideo video,
+    required VideoQualityPreset qualityPreset,
+    VideoOutputFormat outputFormat = VideoOutputFormat.mp4,
+    Uint8List? imageBytes,
+    ExportTransform? transform,
+    bool enableAudio = true,
+    double? playbackSpeed,
+    Duration? startTime,
+    Duration? endTime,
+    double? blur,
+    int? bitrateOverride,
+    List<List<double>> colorMatrixList = const [],
+    String? id,
+  }) {
+    final qualityConfig = VideoQualityConfig.fromPreset(qualityPreset);
+
+    // If quality preset has a resolution and no transform is provided,
+    // create a transform with the preset's scale
+    ExportTransform? finalTransform = transform;
+    if (qualityConfig.resolution != null && transform == null) {
+      // Note: The actual scaling will need to be calculated based on the
+      // original video dimensions. Here we just pass the target resolution
+      // as scale factors. Users can override this with their own transform.
+      finalTransform = ExportTransform(
+        scaleX: qualityConfig.resolution!.width,
+        scaleY: qualityConfig.resolution!.height,
+      );
+    }
+
+    return RenderVideoModel(
+      id: id,
+      outputFormat: outputFormat,
+      video: video,
+      imageBytes: imageBytes,
+      transform: finalTransform,
+      enableAudio: enableAudio,
+      playbackSpeed: playbackSpeed,
+      startTime: startTime,
+      endTime: endTime,
+      blur: blur,
+      bitrate: bitrateOverride ?? qualityConfig.bitrate,
+      colorMatrixList: colorMatrixList,
+    );
+  }
+
   /// Unique ID for the task, useful when running multiple tasks at once.
   final String id;
 

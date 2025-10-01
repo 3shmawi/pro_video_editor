@@ -182,7 +182,7 @@ Uint8List result = await ProVideoEditor.instance.renderVideo(data);
 ///
 /// final directory = await getTemporaryDirectory();
 /// String outputPath = '${directory.path}/my_video.mp4';
-/// 
+///
 /// await ProVideoEditor.instance.renderVideoToFile('${directory.path}/my_video.mp4', data);
 
 /// Listen progress
@@ -193,6 +193,28 @@ StreamBuilder<ProgressModel>(
       return CircularProgressIndicator(value: animatedValue);
     }
 )
+```
+
+#### Quality Preset Example
+```dart
+/// Use quality presets for simplified video export configuration
+/// Available presets: ultra4K, k4, p1080High, p1080, p720High, p720, p480, low, custom
+
+var data = RenderVideoModel.withQualityPreset(
+    video: EditorVideo.asset('assets/my-video.mp4'),
+    qualityPreset: VideoQualityPreset.p1080,  // 1080p at 8 Mbps
+    startTime: const Duration(seconds: 5),
+    endTime: const Duration(seconds: 20),
+);
+
+Uint8List result = await ProVideoEditor.instance.renderVideo(data);
+
+/// Override the preset's bitrate if needed
+var customData = RenderVideoModel.withQualityPreset(
+    video: EditorVideo.asset('assets/my-video.mp4'),
+    qualityPreset: VideoQualityPreset.p720,
+    bitrateOverride: 5000000,  // 5 Mbps instead of default 3 Mbps
+);
 ```
 
 

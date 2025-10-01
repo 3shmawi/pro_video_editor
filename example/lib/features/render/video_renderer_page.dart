@@ -213,6 +213,33 @@ class _VideoRendererPageState extends State<VideoRendererPage> {
     await _renderVideo(data);
   }
 
+  Future<void> _qualityPreset1080p() async {
+    var data = RenderVideoModel.withQualityPreset(
+      video: _video,
+      qualityPreset: VideoQualityPreset.p1080,
+    );
+
+    await _renderVideo(data);
+  }
+
+  Future<void> _qualityPreset720p() async {
+    var data = RenderVideoModel.withQualityPreset(
+      video: _video,
+      qualityPreset: VideoQualityPreset.p720,
+    );
+
+    await _renderVideo(data);
+  }
+
+  Future<void> _qualityPreset4K() async {
+    var data = RenderVideoModel.withQualityPreset(
+      video: _video,
+      qualityPreset: VideoQualityPreset.k4,
+    );
+
+    await _renderVideo(data);
+  }
+
   Future<void> _renderVideo(RenderVideoModel value) async {
     _taskId = DateTime.now().microsecondsSinceEpoch.toString();
     setState(() => _isExporting = true);
@@ -480,6 +507,25 @@ class _VideoRendererPageState extends State<VideoRendererPage> {
             leading: const Icon(Icons.video_file_outlined),
             title: const Text('Output-Format "mov"'),
           ),
+        const Divider(height: 32),
+        ListTile(
+          onTap: _qualityPreset1080p,
+          leading: const Icon(Icons.high_quality),
+          title: const Text('Export with 1080p Quality Preset'),
+          subtitle: const Text('8 Mbps bitrate'),
+        ),
+        ListTile(
+          onTap: _qualityPreset720p,
+          leading: const Icon(Icons.sd),
+          title: const Text('Export with 720p Quality Preset'),
+          subtitle: const Text('3 Mbps bitrate'),
+        ),
+        ListTile(
+          onTap: _qualityPreset4K,
+          leading: const Icon(Icons.four_k),
+          title: const Text('Export with 4K Quality Preset'),
+          subtitle: const Text('35 Mbps bitrate'),
+        ),
       ],
     );
   }

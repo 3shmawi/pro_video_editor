@@ -1,0 +1,135 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
+
+void main() {
+  group('RenderVideoModel.withQualityPreset', () {
+    final testVideo = EditorVideo.asset('test_video.mp4');
+
+    test('creates model with 1080p quality preset', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.p1080,
+      );
+
+      expect(model.video, equals(testVideo));
+      expect(model.bitrate, equals(8000000)); // 8 Mbps
+      expect(model.outputFormat, equals(VideoOutputFormat.mp4));
+      expect(model.enableAudio, isTrue);
+    });
+
+    test('creates model with 720p quality preset', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.p720,
+      );
+
+      expect(model.bitrate, equals(3000000)); // 3 Mbps
+      expect(model.transform?.scaleX, equals(1280));
+      expect(model.transform?.scaleY, equals(720));
+    });
+
+    test('creates model with 4K quality preset', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.k4,
+      );
+
+      expect(model.bitrate, equals(35000000)); // 35 Mbps
+      expect(model.transform?.scaleX, equals(3840));
+      expect(model.transform?.scaleY, equals(2160));
+    });
+
+    test('allows bitrate override', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.p1080,
+        bitrateOverride: 12000000,
+      );
+
+      expect(model.bitrate, equals(12000000));
+    });
+
+    test('respects custom transform parameter', () {
+      const customTransform = ExportTransform(
+        flipX: true,
+        rotateTurns: 1,
+      );
+
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.p1080,
+        transform: customTransform,
+      );
+
+      expect(model.transform, equals(customTransform));
+      expect(model.transform?.flipX, isTrue);
+      expect(model.transform?.rotateTurns, equals(1));
+    });
+
+    test('creates model with all optional parameters', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.p720,
+        outputFormat: VideoOutputFormat.mov,
+        enableAudio: false,
+        playbackSpeed: 2.0,
+        startTime: const Duration(seconds: 5),
+        endTime: const Duration(seconds: 10),
+        blur: 5.0,
+        colorMatrixList: const [
+          [1.0, 0.0, 0.0, 0.0, 0.0],
+        ],
+      );
+
+      expect(model.outputFormat, equals(VideoOutputFormat.mov));
+      expect(model.enableAudio, isFalse);
+      expect(model.playbackSpeed, equals(2.0));
+      expect(model.startTime, equals(const Duration(seconds: 5)));
+      expect(model.endTime, equals(const Duration(seconds: 10)));
+      expect(model.blur, equals(5.0));
+      expect(model.colorMatrixList.length, equals(1));
+    });
+
+    test('creates model with custom ID', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.p1080,
+        id: 'custom-task-id',
+      );
+
+      expect(model.id, equals('custom-task-id'));
+    });
+
+    test('creates model with low quality preset', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.low,
+      );
+
+      expect(model.bitrate, equals(1000000)); // 1 Mbps
+      expect(model.transform?.scaleX, equals(640));
+      expect(model.transform?.scaleY, equals(360));
+    });
+
+    test('creates model with ultra 4K preset', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.ultra4K,
+      );
+
+      expect(model.bitrate, equals(45000000)); // 45 Mbps
+      expect(model.transform?.scaleX, equals(3840));
+      expect(model.transform?.scaleY, equals(2160));
+    });
+
+    test('custom preset does not set transform', () {
+      final model = RenderVideoModel.withQualityPreset(
+        video: testVideo,
+        qualityPreset: VideoQualityPreset.custom,
+      );
+
+      expect(model.bitrate, equals(8000000)); // Default 8 Mbps
+      expect(model.transform, isNull);
+    });
+  });
+}
