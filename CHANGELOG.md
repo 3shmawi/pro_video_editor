@@ -1,3 +1,6 @@
+## 0.3.0
+- **FEAT**(presets): Add video quality presets for simplified export configuration. Details in PR [#55](https://github.com/hm21/pro_video_editor/pull/55).
+
 ## 0.2.4
 - **CHORE**(android): Update Media3 dependencies to version 1.8.0.
 
