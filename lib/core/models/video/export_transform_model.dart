@@ -69,6 +69,28 @@ class ExportTransform {
     );
   }
 
+  /// Returns `true` if this [ExportTransform] has no transformations applied.
+  bool get isEmpty => this == const ExportTransform();
+
+  /// Returns `true` if this [ExportTransform] contains at least one
+  /// transformation.
+  bool get isNotEmpty => !isEmpty;
+
+  /// Converts this [ExportTransform] into a [Map] representation.
+  Map<String, dynamic> toMap() {
+    return {
+      'rotateTurns': rotateTurns,
+      'flipX': flipX,
+      'flipY': flipY,
+      'cropWidth': width,
+      'cropHeight': height,
+      'cropX': x,
+      'cropY': y,
+      'scaleX': scaleX,
+      'scaleY': scaleY,
+    };
+  }
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;

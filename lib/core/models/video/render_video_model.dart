@@ -19,6 +19,7 @@ class RenderVideoModel {
     this.blur,
     this.bitrate,
     this.colorMatrixList = const [],
+    this.qualityConfig,
     String? id,
   })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
         assert(
@@ -38,8 +39,63 @@ class RenderVideoModel {
           '[bitrate] must be greater than 0',
         );
 
+  /// Creates a [RenderVideoModel] with a predefined quality preset.
+  ///
+  /// This factory constructor simplifies video export by providing common
+  /// quality configurations. The preset automatically sets the appropriate
+  /// bitrate and resolution.
+  ///
+  /// Example:
+  /// ```dart
+  /// var model = RenderVideoModel.withQualityPreset(
+  ///   video: EditorVideo.asset('assets/my-video.mp4'),
+  ///   qualityPreset: VideoQualityPreset.p1080,
+  ///   outputFormat: VideoOutputFormat.mp4,
+  /// );
+  /// ```
+  ///
+  /// You can override the preset's resolution by providing a custom
+  /// [transform] with scale or crop settings. The bitrate from the preset
+  /// will still be used unless explicitly overridden with [bitrateOverride].
+  factory RenderVideoModel.withQualityPreset({
+    required EditorVideo video,
+    required VideoQualityPreset qualityPreset,
+    VideoOutputFormat outputFormat = VideoOutputFormat.mp4,
+    Uint8List? imageBytes,
+    ExportTransform? transform,
+    bool enableAudio = true,
+    double? playbackSpeed,
+    Duration? startTime,
+    Duration? endTime,
+    double? blur,
+    int? bitrateOverride,
+    List<List<double>> colorMatrixList = const [],
+    String? id,
+  }) {
+    final qualityConfig = VideoQualityConfig.fromPreset(qualityPreset);
+
+    return RenderVideoModel(
+      id: id,
+      outputFormat: outputFormat,
+      video: video,
+      imageBytes: imageBytes,
+      transform: transform,
+      enableAudio: enableAudio,
+      playbackSpeed: playbackSpeed,
+      startTime: startTime,
+      endTime: endTime,
+      blur: blur,
+      bitrate: bitrateOverride ?? qualityConfig.bitrate,
+      colorMatrixList: colorMatrixList,
+      qualityConfig: qualityConfig,
+    );
+  }
+
   /// Unique ID for the task, useful when running multiple tasks at once.
   final String id;
+
+  /// Configuration class that defines video quality parameters.
+  final VideoQualityConfig? qualityConfig;
 
   /// The target format for the exported video.
   final VideoOutputFormat outputFormat;
@@ -112,27 +168,34 @@ class RenderVideoModel {
   Future<Map<String, dynamic>> toAsyncMap() async {
     var transform = this.transform ?? const ExportTransform();
 
+    double? scaleX = transform.scaleX;
+    double? scaleY = transform.scaleY;
+
+    if (qualityConfig != null && scaleX == null && scaleY == null) {
+      final meta = await ProVideoEditor.instance.getMetadata(video);
+      final originalResolution = meta.resolution;
+      final targetResolution = qualityConfig!.resolution ?? originalResolution;
+      scaleX = targetResolution.width / originalResolution.width;
+      scaleY = targetResolution.height / originalResolution.height;
+    }
+
+    String inputPath = await video.safeFilePath();
+
     return {
+      ...transform.toMap(),
       'id': id,
-      'inputPath': await video.safeFilePath(),
+      'inputPath': inputPath,
       'imageBytes': imageBytes,
-      'rotateTurns': transform.rotateTurns,
-      'flipX': transform.flipX,
-      'flipY': transform.flipY,
       'enableAudio': enableAudio,
       'playbackSpeed': playbackSpeed,
       'startTime': startTime?.inMicroseconds,
       'endTime': endTime?.inMicroseconds,
-      'cropWidth': transform.width,
-      'cropHeight': transform.height,
-      'cropX': transform.x,
-      'cropY': transform.y,
-      'scaleX': transform.scaleX,
-      'scaleY': transform.scaleY,
       'colorMatrixList': colorMatrixList,
       'outputFormat': outputFormat.name,
       'blur': blur,
       'bitrate': bitrate,
+      'scaleX': scaleX,
+      'scaleY': scaleY,
     };
   }
 
@@ -150,6 +213,7 @@ class RenderVideoModel {
     List<List<double>>? colorMatrixList,
     double? blur,
     int? bitrate,
+    VideoQualityConfig? qualityConfig,
   }) {
     return RenderVideoModel(
       id: id ?? this.id,
@@ -164,6 +228,7 @@ class RenderVideoModel {
       colorMatrixList: colorMatrixList ?? this.colorMatrixList,
       blur: blur ?? this.blur,
       bitrate: bitrate ?? this.bitrate,
+      qualityConfig: qualityConfig ?? this.qualityConfig,
     );
   }
 }

@@ -396,6 +396,7 @@ class MockRenderVideoModel extends _i1.Mock implements _i4.RenderVideoModel {
     List<List<double>>? colorMatrixList,
     double? blur,
     int? bitrate,
+    _i4.VideoQualityConfig? qualityConfig,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -414,6 +415,7 @@ class MockRenderVideoModel extends _i1.Mock implements _i4.RenderVideoModel {
             #colorMatrixList: colorMatrixList,
             #blur: blur,
             #bitrate: bitrate,
+            #qualityConfig: qualityConfig,
           },
         ),
         returnValue: _FakeRenderVideoModel_2(
@@ -434,6 +436,7 @@ class MockRenderVideoModel extends _i1.Mock implements _i4.RenderVideoModel {
               #colorMatrixList: colorMatrixList,
               #blur: blur,
               #bitrate: bitrate,
+              #qualityConfig: qualityConfig,
             },
           ),
         ),
