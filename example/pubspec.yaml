@@ -18,7 +18,7 @@ dependencies:
 
   pro_image_editor: ^11.6.0
   
-  google_fonts: ^6.3.2
+  google_fonts: ^6.2.0
   flutter_colorpicker: ^1.1.0
   mime: ^2.0.0
 
@@ -34,8 +34,8 @@ dev_dependencies:
     sdk: flutter
   flutter_test:
     sdk: flutter
- 
-  flutter_lints: ^6.0.0
+
+  flutter_lints: ^5.0.0
  
 
 flutter:

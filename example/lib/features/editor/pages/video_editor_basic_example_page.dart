@@ -8,7 +8,6 @@ import 'package:pro_video_editor/core/platform/io/io_helper.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:video_player/video_player.dart';
 
-import '/core/constants/example_constants.dart';
 import '/features/editor/widgets/video_initializing_widget.dart';
 import '../widgets/preview_video.dart';
 import '../widgets/video_progress_alert.dart';
@@ -60,7 +59,8 @@ class _VideoEditorBasicExamplePageState
   final int _thumbnailCount = 7;
 
   /// The video currently loaded in the editor.
-  final _video = EditorVideo.asset(kVideoEditorExampleAssetPath);
+  final _video = EditorVideo.network(
+      'https://firebasestorage.googleapis.com/v0/b/athlepad-development/o/videos%2F3iog22PGQthr19jS4cptBT0NUcW2%2FChGEzLco9nqS0EUF7LRN.mp4?alt=media&token=e2bb0abb-f48f-46a6-b4c8-345719b95791');
 
   String? _outputPath;
 
@@ -147,8 +147,8 @@ class _VideoEditorBasicExamplePageState
     await _setMetadata();
     _generateThumbnails();
 
-    _videoController =
-        VideoPlayerController.asset(kVideoEditorExampleAssetPath);
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(
+        'https://firebasestorage.googleapis.com/v0/b/athlepad-development/o/videos%2F3iog22PGQthr19jS4cptBT0NUcW2%2FChGEzLco9nqS0EUF7LRN.mp4?alt=media&token=e2bb0abb-f48f-46a6-b4c8-345719b95791'));
 
     await Future.wait([
       _videoController.initialize(),

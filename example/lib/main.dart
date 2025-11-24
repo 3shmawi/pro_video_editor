@@ -4,6 +4,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:pro_video_editor_example/features/editor/pages/video_editor_basic_example_page.dart';
 import 'package:pro_video_editor_example/features/editor/pages/video_editor_grounded_example_page.dart';
+import 'package:pro_video_editor_example/features/editor/pages/video_editor_with_timed_overlays_page.dart';
 
 import 'features/metadata/video_metadata_example_page.dart';
 import 'features/render/video_renderer_page.dart';
@@ -79,6 +80,11 @@ class _HomePageState extends State<HomePage> {
       icon: Icons.grass_outlined,
       title: 'Video-Editor Grounded-Design',
       pageBuilder: () => const VideoEditorGroundedExamplePage(),
+    ),
+    _ExampleListItem(
+      icon: Icons.layers_outlined,
+      title: '🎯 Video-Editor with Timed Overlays',
+      pageBuilder: () => const VideoEditorWithTimedOverlaysPage(),
     ),
   ];
 
