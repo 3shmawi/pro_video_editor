@@ -5,6 +5,7 @@ import android.os.Looper
 import android.util.Log
 import ch.waio.pro_video_editor.src.features.Metadata
 import ch.waio.pro_video_editor.src.features.render.RenderVideo
+import ch.waio.pro_video_editor.src.features.render.models.TimedImageLayer
 import ch.waio.pro_video_editor.src.features.ThumbnailGenerator
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
@@ -142,11 +143,27 @@ class ProVideoEditorPlugin : FlutterPlugin, MethodCallHandler {
                 val outputPath = call.argument<String>("outputPath")
                 val colorMatrixList = call.argument<List<List<Double>>>("colorMatrixList")
                     ?: emptyList<List<Double>>()
+                
+                // Parse timed image layers
+                val timedImageLayersRaw = call.argument<List<Map<String, Any?>>>("timedImageLayers")
+                val timedImageLayers = if (timedImageLayersRaw != null) {
+                    Log.d("ProVideoEditor", "Received ${timedImageLayersRaw.size} timed image layers from Flutter")
+                    val layers = TimedImageLayer.fromMapList(timedImageLayersRaw)
+                    Log.d("ProVideoEditor", "Successfully parsed ${layers.size} timed image layers")
+                    layers.forEachIndexed { index, layer ->
+                        Log.d("ProVideoEditor", "Layer $index: imageBytes size=${layer.imageBytes.size}, startTime=${layer.startTimeUs / 1_000_000.0}s, endTime=${layer.endTimeUs / 1_000_000.0}s")
+                    }
+                    layers
+                } else {
+                    Log.d("ProVideoEditor", "No timed image layers received")
+                    emptyList()
+                }
 
                 postProgress(id, 0.0)
 
                 renderVideo.render(
                     imageBytes = imageBytes,
+                    timedImageBytes = timedImageLayers,
                     inputFormat = inputFormat,
                     outputFormat = outputFormat,
                     inputPath = inputPath,

@@ -31,7 +31,9 @@ import applyImageLayer
 import applyPlaybackSpeed
 import applyRotation
 import applyScale
+import applyTimedImageLayer
 import applyTrim
+import ch.waio.pro_video_editor.src.features.render.models.TimedImageLayer
 import mapFormatToMimeType
 import java.io.File
 
@@ -39,6 +41,7 @@ import java.io.File
 class RenderVideo(private val context: Context) {
     fun render(
         imageBytes: ByteArray?,
+        timedImageBytes: List<TimedImageLayer> = emptyList(),
         inputFormat: String,
         outputFormat: String,
         inputPath: String,
@@ -90,10 +93,30 @@ class RenderVideo(private val context: Context) {
         applyTrim(mediaItemBuilder, startUs, endUs)
         applyColorMatrix(videoEffects, colorMatrixList)
         applyBlur(videoEffects, blur)
+
+        //1st - Apply static image layer (if provided)
         applyImageLayer(
             videoEffects, inputFile, imageBytes, rotationDegrees,
             cropWidth, cropHeight, scaleX, scaleY
         )
+
+        // 2nd - Apply timed image layers (if any)
+        if (timedImageBytes.isNotEmpty()) {
+            Log.d(RENDER_TAG, "Applying ${timedImageBytes.size} timed image layer(s)")
+            timedImageBytes.forEach { timedLayer ->
+                applyTimedImageLayer(
+                    videoEffects = videoEffects,
+                    inputFile = inputFile,
+                    timedLayer = timedLayer,
+                    rotationDegrees = rotationDegrees,
+                    cropWidth = cropWidth,
+                    cropHeight = cropHeight,
+                    scaleX = scaleX,
+                    scaleY = scaleY
+                )
+            }
+        }
+
         applyPlaybackSpeed(videoEffects, audioEffects, playbackSpeed)
 
         val mediaItem = mediaItemBuilder.build()
