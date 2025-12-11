@@ -109,12 +109,30 @@ public class ProVideoEditorPlugin: NSObject, FlutterPlugin, FlutterStreamHandler
       let startUs = args["startTime"] as? Int64
       let endUs = args["endTime"] as? Int64
       let colorMatrixList = args["colorMatrixList"] as? [[Double]] ?? []
+      
+      // Parse timed image layers
+      var timedImageLayers: [TimedImageLayer] = []
+      if let rawLayers = args["timedImageLayers"] as? [[String: Any]] {
+           for layerMap in rawLayers {
+               if let flutterData = layerMap["imageBytes"] as? FlutterStandardTypedData,
+                  let startUs = layerMap["startTimeUs"] as? Int64,
+                  let endUs = layerMap["endTimeUs"] as? Int64 {
+                   let layer = TimedImageLayer(
+                       imageData: flutterData.data,
+                       startTimeUs: startUs,
+                       endTimeUs: endUs
+                   )
+                   timedImageLayers.append(layer)
+               }
+           }
+      }
 
       postProgress(id: id, progress: 0.0)
 
       RenderVideo.render(
         inputPath: inputPath,
         imageData: imageBytes,
+        timedImageLayers: timedImageLayers,
         inputFormat: inputFormat,
         outputFormat: outputFormat,
         outputPath: outputPath,

@@ -8,6 +8,7 @@ class RenderVideo {
     static func render(
         inputPath: String,
         imageData: Data?,
+        timedImageLayers: [TimedImageLayer] = [],
         inputFormat: String,
         outputFormat: String,
         outputPath: String?,
@@ -106,6 +107,10 @@ class RenderVideo {
                         config: &config, to: videoComposition, matrixList: colorMatrixList)
                     applyBlur(config: &config, sigma: blur)
                     applyImageLayer(config: &config, imageData: imageData)
+                    
+                    for layer in timedImageLayers {
+                        applyTimedImageLayer(config: &config, timedLayer: layer)
+                    }
 
                     var finalRenderSize = videoComposition.renderSize
 
