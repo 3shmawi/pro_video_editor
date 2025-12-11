@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pro_image_editor/core/models/timed_layers/timed_layer.dart';
 import 'package:pro_image_editor/designs/grounded/grounded_design.dart';
+import 'package:pro_image_editor/features/main_editor/services/ffmpeg_export_service.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/core/platform/io/io_helper.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -80,15 +80,24 @@ class _VideoEditorGroundedExamplePageState
 
   final _taskId = DateTime.now().microsecondsSinceEpoch.toString();
 
+  /// Stream controllers for FFmpeg progress tracking
+  StreamController<double>? _audioProgressController;
   @override
   void initState() {
     super.initState();
+    // Initialize stream controllers early so they're available when dialog is shown
+    _audioProgressController = StreamController<double>.broadcast();
+    if (kDebugMode) {
+      print('Stream controllers initialized in initState');
+      print('Audio controller: $_audioProgressController');
+    }
     _initializePlayer();
   }
 
   @override
   void dispose() {
     _videoController.dispose();
+    _audioProgressController?.close();
     super.dispose();
   }
 
@@ -227,33 +236,29 @@ class _VideoEditorGroundedExamplePageState
   /// Applies blur, color filters, cropping, rotation, flipping, and trimming
   /// before exporting using FFmpeg. Measures and stores the generation time.
   Future<void> generateVideo(CompleteParameters parameters) async {
+  /// Uses a two-stage export process:
+  /// - Stage 1 (Native): Renders timed text/paint layers, transformations, filters
+  /// - Stage 2 (FFmpeg): Merges audio layers into the rendered video
+  ///
+  /// This allows both timed visual layers (handled natively) and timed audio
+  /// layers (handled by FFmpeg) to work together in the final export.
+  Future<void> generateVideo(
+    CompleteParameters parameters,
+  ) async {
+    // Extract audio and video bubble layers first to determine what controllers we need
+    final audioLayers = parameters.layers.whereType<AudioLayer>().toList();
+    final hasAudioLayers = audioLayers.isNotEmpty;
+
+
+    // Reset stream controllers with initial 0 progress
+    // Controllers are already initialized in initState
+    if (hasAudioLayers) {
+      _audioProgressController?.add(0.0);
+    }
     final stopwatch = Stopwatch()..start();
 
     unawaited(_videoController.pause());
 
-    var exportModel = RenderVideoModel(
-      id: _taskId,
-      video: _video,
-      outputFormat: _outputFormat,
-      enableAudio: _proVideoController?.isAudioEnabled ?? true,
-      imageBytes: parameters.layers.isNotEmpty ? parameters.image : null,
-      blur: parameters.blur,
-      colorMatrixList: parameters.colorFilters,
-      startTime: parameters.startTime,
-      endTime: parameters.endTime,
-      transform: parameters.isTransformed
-          ? ExportTransform(
-              width: parameters.cropWidth,
-              height: parameters.cropHeight,
-              rotateTurns: parameters.rotateTurns,
-              x: parameters.cropX,
-              y: parameters.cropY,
-              flipX: parameters.flipX,
-              flipY: parameters.flipY,
-            )
-          : null,
-      // bitrate: _videoMetadata.bitrate,
-    );
     // Extract timed image layers (from text and paint layers)
     final timedImageLayers = timedImageLayersMapper(parameters);
     final hasTimedImageLayers = timedImageLayers.isNotEmpty;
@@ -265,6 +270,13 @@ class _VideoEditorGroundedExamplePageState
         parameters.colorFilters.isNotEmpty ||
         parameters.startTime != null ||
         parameters.endTime != null;
+
+    // Stage 1: Native rendering (if needed)
+    if (needsNativeRendering) {
+      final directory = await getTemporaryDirectory();
+      final intermediateOutput = hasAudioLayers
+          ? '${directory.path}/intermediate_${DateTime.now().millisecondsSinceEpoch}.mp4'
+          : '${directory.path}/my_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
 
       var exportModel = RenderVideoModel(
         id: _taskId,
@@ -290,15 +302,34 @@ class _VideoEditorGroundedExamplePageState
         // bitrate: _videoMetadata.bitrate,
       );
 
-    final directory = await getTemporaryDirectory();
-    final now = DateTime.now().millisecondsSinceEpoch;
-    _outputPath = await ProVideoEditor.instance.renderVideoToFile(
-      '${directory.path}/my_video_$now.mp4',
-      exportModel,
-    );
       _outputPath = await ProVideoEditor.instance.renderVideoToFile(
         intermediateOutput,
         exportModel,
+      );
+    }
+
+    final ffmpegService = FfmpegExportService();
+    final videoDurationMs = _videoMetadata.duration.inMilliseconds;
+
+    // Stage 2: Audio merging (if needed)
+    if (hasAudioLayers) {
+      final directory = await getTemporaryDirectory();
+      final audioOutput =
+          '${directory.path}/audio_merged_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      _outputPath = await ffmpegService.mergeAudioIntoVideo(
+        inputVideoPath: _outputPath!, // todo check this later
+        audioLayers: audioLayers,
+        outputPath: audioOutput,
+        videoDurationMs: videoDurationMs,
+        keepOriginalAudio: parameters.keepOriginalAudio,
+        onProgress: (progress) {
+          _audioProgressController?.add(progress);
+          if (kDebugMode) {
+            print(
+                'FFmpeg audio progress: ${(progress * 100).toStringAsFixed(1)}%');
+          }
+        },
       );
     }
 
@@ -374,362 +405,6 @@ class _VideoEditorGroundedExamplePageState
 
   Widget _buildEditor() {
     return LayoutBuilder(builder: (context, constraints) {
-      return ProImageEditor.video(
-        _proVideoController!,
-        callbacks: ProImageEditorCallbacks(
-          onCompleteWithParameters: generateVideo,
-          onCloseEditor: onCloseEditor,
-          videoEditorCallbacks: VideoEditorCallbacks(
-            onPause: _videoController.pause,
-            onPlay: _videoController.play,
-            onMuteToggle: (isMuted) {
-              _videoController.setVolume(isMuted ? 0 : 100);
-            },
-            onTrimSpanUpdate: (durationSpan) {
-              if (_videoController.value.isPlaying) {
-                _proVideoController!.pause();
-              }
-            },
-            onTrimSpanEnd: _seekToPosition,
-          ),
-          mainEditorCallbacks: MainEditorCallbacks(
-            onStartCloseSubEditor: (value) {
-              /// Start the reversed animation for the bottombar
-              _mainEditorBarKey.currentState?.setState(() {});
-            },
-          ),
-          stickerEditorCallbacks: StickerEditorCallbacks(
-            onSearchChanged: (value) {
-              /// Filter your stickers
-              debugPrint(value);
-            },
-          ),
-        ),
-        configs: ProImageEditorConfigs(
-          dialogConfigs: DialogConfigs(
-            widgets: DialogWidgets(
-              loadingDialog: (message, configs) => VideoProgressAlert(
-                taskId: _taskId,
-              ),
-            ),
-          ),
-          videoEditor: _videoConfigs.copyWith(
-            playTimeSmoothingDuration: const Duration(milliseconds: 600),
-          ),
-          designMode: platformDesignMode,
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue.shade800,
-              brightness: Brightness.dark,
-            ),
-          ),
-          layerInteraction: const LayerInteractionConfigs(
-            hideToolbarOnInteraction: false,
-          ),
-          mainEditor: MainEditorConfigs(
-            widgets: MainEditorWidgets(
-              removeLayerArea: (
-                removeAreaKey,
-                editor,
-                rebuildStream,
-                isLayerBeingTransformed,
-              ) =>
-                  VideoEditorRemoveArea(
-                removeAreaKey: removeAreaKey,
-                editor: editor,
-                rebuildStream: rebuildStream,
-                isLayerBeingTransformed: isLayerBeingTransformed,
-              ),
-              appBar: (editor, rebuildStream) => null,
-              bottomBar: (editor, rebuildStream, key) => ReactiveWidget(
-                key: key,
-                builder: (context) {
-                  return GroundedMainBar(
-                    key: _mainEditorBarKey,
-                    editor: editor,
-                    configs: editor.configs,
-                    callbacks: editor.callbacks,
-                  );
-                },
-                stream: rebuildStream,
-              ),
-            ),
-            style: const MainEditorStyle(
-              background: Color(0xFF000000),
-              bottomBarBackground: Color(0xFF161616),
-            ),
-          ),
-          paintEditor: PaintEditorConfigs(
-            /// Blur and pixelate are not supported.
-            enableModePixelate: false,
-            enableModeBlur: false,
-            style: const PaintEditorStyle(
-              background: Color(0xFF000000),
-              bottomBarBackground: Color(0xFF161616),
-              initialStrokeWidth: 5,
-            ),
-            widgets: PaintEditorWidgets(
-              appBar: (paintEditor, rebuildStream) => null,
-              colorPicker:
-                  (paintEditor, rebuildStream, currentColor, setColor) => null,
-              bottomBar: (editorState, rebuildStream) {
-                return ReactiveWidget(
-                  builder: (context) {
-                    return GroundedPaintBar(
-                        configs: editorState.configs,
-                        callbacks: editorState.callbacks,
-                        editor: editorState,
-                        i18nColor: 'Color',
-                        showColorPicker: (currentColor) {
-                          Color? newColor;
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              content: SingleChildScrollView(
-                                child: ColorPicker(
-                                  pickerColor: currentColor,
-                                  onColorChanged: (color) {
-                                    newColor = color;
-                                  },
-                                ),
-                              ),
-                              actions: <Widget>[
-                                ElevatedButton(
-                                  child: const Text('Got it'),
-                                  onPressed: () {
-                                    if (newColor != null) {
-                                      setState(() =>
-                                          editorState.setColor(newColor!));
-                                    }
-                                    Navigator.of(context).pop();
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        });
-                  },
-                  stream: rebuildStream,
-                );
-              },
-            ),
-          ),
-          textEditor: TextEditorConfigs(
-            customTextStyles: [
-              GoogleFonts.roboto(),
-              GoogleFonts.averiaLibre(),
-              GoogleFonts.lato(),
-              GoogleFonts.comicNeue(),
-              GoogleFonts.actor(),
-              GoogleFonts.odorMeanChey(),
-              GoogleFonts.nabla(),
-            ],
-            style: TextEditorStyle(
-              textFieldMargin: const EdgeInsets.only(top: kToolbarHeight),
-              bottomBarBackground: const Color(0xFF161616),
-              bottomBarMainAxisAlignment: !_useMaterialDesign
-                  ? MainAxisAlignment.spaceEvenly
-                  : MainAxisAlignment.start,
-            ),
-            widgets: TextEditorWidgets(
-              appBar: (textEditor, rebuildStream) => null,
-              colorPicker:
-                  (textEditor, rebuildStream, currentColor, setColor) => null,
-              bottomBar: (editorState, rebuildStream) {
-                return ReactiveWidget(
-                  builder: (context) {
-                    return GroundedTextBar(
-                        configs: editorState.configs,
-                        callbacks: editorState.callbacks,
-                        editor: editorState,
-                        i18nColor: 'Color',
-                        showColorPicker: (currentColor) {
-                          Color? newColor;
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              content: SingleChildScrollView(
-                                child: ColorPicker(
-                                  pickerColor: currentColor,
-                                  onColorChanged: (color) {
-                                    newColor = color;
-                                  },
-                                ),
-                              ),
-                              actions: <Widget>[
-                                ElevatedButton(
-                                  child: const Text('Got it'),
-                                  onPressed: () {
-                                    if (newColor != null) {
-                                      setState(() =>
-                                          editorState.primaryColor = newColor!);
-                                    }
-                                    Navigator.of(context).pop();
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        });
-                  },
-                  stream: rebuildStream,
-                );
-              },
-              bodyItems: (editorState, rebuildStream) => [
-                ReactiveWidget(
-                  stream: rebuildStream,
-                  builder: (_) => Padding(
-                    padding: const EdgeInsets.only(top: kToolbarHeight),
-                    child: GroundedTextSizeSlider(textEditor: editorState),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          cropRotateEditor: CropRotateEditorConfigs(
-            style: const CropRotateEditorStyle(
-              cropCornerColor: Color(0xFFFFFFFF),
-              cropCornerLength: 36,
-              cropCornerThickness: 4,
-              background: Color(0xFF000000),
-              bottomBarBackground: Color(0xFF161616),
-              helperLineColor: Color(0x25FFFFFF),
-            ),
-            widgets: CropRotateEditorWidgets(
-              appBar: (cropRotateEditor, rebuildStream) => null,
-              bottomBar: (cropRotateEditor, rebuildStream) => ReactiveWidget(
-                stream: rebuildStream,
-                builder: (_) => GroundedCropRotateBar(
-                  configs: cropRotateEditor.configs,
-                  callbacks: cropRotateEditor.callbacks,
-                  editor: cropRotateEditor,
-                  selectedRatioColor: kImageEditorPrimaryColor,
-                ),
-              ),
-            ),
-          ),
-          filterEditor: FilterEditorConfigs(
-            fadeInUpDuration: kGroundedFadeInDuration,
-            fadeInUpStaggerDelayDuration: kGroundedFadeInStaggerDelay,
-            style: const FilterEditorStyle(
-              filterListSpacing: 7,
-              filterListMargin: EdgeInsets.fromLTRB(8, 0, 8, 8),
-              background: Color(0xFF000000),
-            ),
-            widgets: FilterEditorWidgets(
-              slider:
-                  (editorState, rebuildStream, value, onChanged, onChangeEnd) =>
-                      ReactiveWidget(
-                stream: rebuildStream,
-                builder: (_) => Slider(
-                  onChanged: onChanged,
-                  onChangeEnd: onChangeEnd,
-                  value: value,
-                  activeColor: Colors.blue.shade200,
-                ),
-              ),
-              appBar: (editorState, rebuildStream) => null,
-              bottomBar: (editorState, rebuildStream) {
-                return ReactiveWidget(
-                  builder: (context) {
-                    return GroundedFilterBar(
-                      configs: editorState.configs,
-                      callbacks: editorState.callbacks,
-                      editor: editorState,
-                      image: _buildVideoPlayer(),
-                    );
-                  },
-                  stream: rebuildStream,
-                );
-              },
-            ),
-          ),
-          tuneEditor: TuneEditorConfigs(
-            style: const TuneEditorStyle(
-              background: Color(0xFF000000),
-              bottomBarBackground: Color(0xFF161616),
-            ),
-            widgets: TuneEditorWidgets(
-              appBar: (editor, rebuildStream) => null,
-              bottomBar: (editorState, rebuildStream) {
-                return ReactiveWidget(
-                  builder: (context) {
-                    return GroundedTuneBar(
-                      configs: editorState.configs,
-                      callbacks: editorState.callbacks,
-                      editor: editorState,
-                    );
-                  },
-                  stream: rebuildStream,
-                );
-              },
-            ),
-          ),
-          blurEditor: BlurEditorConfigs(
-            style: const BlurEditorStyle(
-              background: Color(0xFF000000),
-            ),
-            widgets: BlurEditorWidgets(
-              appBar: (blurEditor, rebuildStream) => null,
-              bottomBar: (editorState, rebuildStream) {
-                return ReactiveWidget(
-                  builder: (context) {
-                    return GroundedBlurBar(
-                      configs: editorState.configs,
-                      callbacks: editorState.callbacks,
-                      editor: editorState,
-                    );
-                  },
-                  stream: rebuildStream,
-                );
-              },
-            ),
-          ),
-          emojiEditor: EmojiEditorConfigs(
-            checkPlatformCompatibility: !kIsWeb,
-            style: EmojiEditorStyle(
-              backgroundColor: Colors.transparent,
-              textStyle: DefaultEmojiTextStyle.copyWith(
-                fontFamily:
-                    !kIsWeb ? null : GoogleFonts.notoColorEmoji().fontFamily,
-                fontSize: _useMaterialDesign ? 48 : 30,
-              ),
-              emojiViewConfig: EmojiViewConfig(
-                gridPadding: EdgeInsets.zero,
-                horizontalSpacing: 0,
-                verticalSpacing: 0,
-                recentsLimit: 40,
-                backgroundColor: Colors.transparent,
-                buttonMode: !_useMaterialDesign
-                    ? ButtonMode.CUPERTINO
-                    : ButtonMode.MATERIAL,
-                loadingIndicator:
-                    const Center(child: CircularProgressIndicator()),
-                columns: _calculateEmojiColumns(constraints),
-                emojiSizeMax: !_useMaterialDesign ? 32 : 64,
-                replaceEmojiOnLimitExceed: false,
-              ),
-              bottomActionBarConfig:
-                  const BottomActionBarConfig(enabled: false),
-            ),
-          ),
-          i18n: const I18n(
-            paintEditor: I18nPaintEditor(
-              changeOpacity: 'Opacity',
-              lineWidth: 'Thickness',
-            ),
-            textEditor: I18nTextEditor(
-              backgroundMode: 'Mode',
-              textAlign: 'Align',
-            ),
-          ),
-          stickerEditor: StickerEditorConfigs(
-            enabled: true,
-            builder: (setLayer, scrollController) => DemoBuildStickers(
-                categoryColor: const Color(0xFF161616),
-                setLayer: setLayer,
-                scrollController: scrollController),
       return ProImageEditor.video(_proVideoController!,
           callbacks: ProImageEditorCallbacks(
             onCompleteWithParameters: generateVideo,
@@ -765,6 +440,7 @@ class _VideoEditorGroundedExamplePageState
               widgets: DialogWidgets(
                 loadingDialog: (message, configs) => VideoProgressAlert(
                   taskId: _taskId,
+                  onAudioProgress: _audioProgressController,
                 ),
               ),
             ),
@@ -898,8 +574,11 @@ class _VideoEditorGroundedExamplePageState
               ),
             ),
           ),
-        ),
-      );
+          editorImage: EditorImage(
+            assetPath: _video.assetPath,
+            networkUrl: _video.networkUrl,
+            file: _video.file,
+          ));
     });
   }
 
