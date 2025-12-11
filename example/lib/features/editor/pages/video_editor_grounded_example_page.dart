@@ -82,14 +82,18 @@ class _VideoEditorGroundedExamplePageState
 
   /// Stream controllers for FFmpeg progress tracking
   StreamController<double>? _audioProgressController;
+  StreamController<double>? _videoBubbleProgressController;
+
   @override
   void initState() {
     super.initState();
     // Initialize stream controllers early so they're available when dialog is shown
     _audioProgressController = StreamController<double>.broadcast();
+    _videoBubbleProgressController = StreamController<double>.broadcast();
     if (kDebugMode) {
       print('Stream controllers initialized in initState');
       print('Audio controller: $_audioProgressController');
+      print('Video bubble controller: $_videoBubbleProgressController');
     }
     _initializePlayer();
   }
@@ -98,6 +102,7 @@ class _VideoEditorGroundedExamplePageState
   void dispose() {
     _videoController.dispose();
     _audioProgressController?.close();
+    _videoBubbleProgressController?.close();
     super.dispose();
   }
 
@@ -233,9 +238,6 @@ class _VideoEditorGroundedExamplePageState
 
   /// Generates the final video based on the given [parameters].
   ///
-  /// Applies blur, color filters, cropping, rotation, flipping, and trimming
-  /// before exporting using FFmpeg. Measures and stores the generation time.
-  Future<void> generateVideo(CompleteParameters parameters) async {
   /// Uses a two-stage export process:
   /// - Stage 1 (Native): Renders timed text/paint layers, transformations, filters
   /// - Stage 2 (FFmpeg): Merges audio layers into the rendered video
@@ -249,12 +251,19 @@ class _VideoEditorGroundedExamplePageState
     final audioLayers = parameters.layers.whereType<AudioLayer>().toList();
     final hasAudioLayers = audioLayers.isNotEmpty;
 
+    final videoBubbleLayers =
+        parameters.layers.whereType<VideoBubbleLayer>().toList();
+    final hasVideoBubbleLayers = videoBubbleLayers.isNotEmpty;
 
     // Reset stream controllers with initial 0 progress
     // Controllers are already initialized in initState
     if (hasAudioLayers) {
       _audioProgressController?.add(0.0);
     }
+    if (hasVideoBubbleLayers) {
+      _videoBubbleProgressController?.add(0.0);
+    }
+
     final stopwatch = Stopwatch()..start();
 
     unawaited(_videoController.pause());
@@ -274,7 +283,7 @@ class _VideoEditorGroundedExamplePageState
     // Stage 1: Native rendering (if needed)
     if (needsNativeRendering) {
       final directory = await getTemporaryDirectory();
-      final intermediateOutput = hasAudioLayers
+      final intermediateOutput = hasAudioLayers || hasVideoBubbleLayers
           ? '${directory.path}/intermediate_${DateTime.now().millisecondsSinceEpoch}.mp4'
           : '${directory.path}/my_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
 
@@ -328,6 +337,27 @@ class _VideoEditorGroundedExamplePageState
           if (kDebugMode) {
             print(
                 'FFmpeg audio progress: ${(progress * 100).toStringAsFixed(1)}%');
+          }
+        },
+      );
+    }
+
+    // Stage 3: Video bubble merging (if needed)
+    if (hasVideoBubbleLayers) {
+      final directory = await getTemporaryDirectory();
+      final finalOutput =
+          '${directory.path}/video_bubbles_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      _outputPath = await ffmpegService.mergeVideoBubblesIntoVideo(
+        inputVideoPath: _outputPath!, // todo check this later
+        videoBubbleLayers: videoBubbleLayers,
+        outputPath: finalOutput,
+        videoDurationMs: videoDurationMs,
+        onProgress: (progress) {
+          _videoBubbleProgressController?.add(progress);
+          if (kDebugMode) {
+            print(
+                'FFmpeg video bubble progress: ${(progress * 100).toStringAsFixed(1)}%');
           }
         },
       );
@@ -441,6 +471,7 @@ class _VideoEditorGroundedExamplePageState
                 loadingDialog: (message, configs) => VideoProgressAlert(
                   taskId: _taskId,
                   onAudioProgress: _audioProgressController,
+                  onVideoBubbleProgress: _videoBubbleProgressController,
                 ),
               ),
             ),
