@@ -11,6 +11,7 @@ class RenderVideoModel {
     required this.outputFormat,
     required this.video,
     this.imageBytes,
+    this.timedImageLayers = const [],
     this.transform,
     this.enableAudio = true,
     this.playbackSpeed,
@@ -62,6 +63,7 @@ class RenderVideoModel {
     required VideoQualityPreset qualityPreset,
     VideoOutputFormat outputFormat = VideoOutputFormat.mp4,
     Uint8List? imageBytes,
+    List<TimedImageLayer> timedImageLayers = const [],
     ExportTransform? transform,
     bool enableAudio = true,
     double? playbackSpeed,
@@ -79,6 +81,7 @@ class RenderVideoModel {
       outputFormat: outputFormat,
       video: video,
       imageBytes: imageBytes,
+      timedImageLayers: timedImageLayers,
       transform: transform,
       enableAudio: enableAudio,
       playbackSpeed: playbackSpeed,
@@ -107,8 +110,32 @@ class RenderVideoModel {
   /// source type and safely retrieving video bytes.
   final EditorVideo video;
 
-  /// A transparent image which will overlay the video.
+  /// A transparent image which will overlay the video for its entire duration.
+  ///
+  /// For time-specific overlays, use [timedImageLayers] instead.
   final Uint8List? imageBytes;
+
+  /// List of timed image layers that appear at specific time ranges.
+  ///
+  /// Each [TimedImageLayer] defines an image overlay with start and end times.
+  /// Multiple layers can be used to create complex overlay sequences.
+  ///
+  /// Example:
+  /// ```dart
+  /// timedImageLayers: [
+  ///   TimedImageLayer(
+  ///     imageBytes: introImage,
+  ///     startTime: Duration(seconds: 0),
+  ///     endTime: Duration(seconds: 3),
+  ///   ),
+  ///   TimedImageLayer(
+  ///     imageBytes: outroImage,
+  ///     startTime: Duration(seconds: 27),
+  ///     endTime: Duration(seconds: 30),
+  ///   ),
+  /// ]
+  /// ```
+  final List<TimedImageLayer> timedImageLayers;
 
   /// Transformation settings like resize, rotation, offset, and flipping.
   ///
@@ -186,6 +213,8 @@ class RenderVideoModel {
       'id': id,
       'inputPath': inputPath,
       'imageBytes': imageBytes,
+      'timedImageLayers':
+          timedImageLayers.map((layer) => layer.toMap()).toList(),
       'enableAudio': enableAudio,
       'playbackSpeed': playbackSpeed,
       'startTime': startTime?.inMicroseconds,
@@ -205,6 +234,7 @@ class RenderVideoModel {
     VideoOutputFormat? outputFormat,
     EditorVideo? video,
     Uint8List? imageBytes,
+    List<TimedImageLayer>? timedImageLayers,
     ExportTransform? transform,
     bool? enableAudio,
     double? playbackSpeed,
@@ -220,6 +250,7 @@ class RenderVideoModel {
       outputFormat: outputFormat ?? this.outputFormat,
       video: video ?? this.video,
       imageBytes: imageBytes ?? this.imageBytes,
+      timedImageLayers: timedImageLayers ?? this.timedImageLayers,
       transform: transform ?? this.transform,
       enableAudio: enableAudio ?? this.enableAudio,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
