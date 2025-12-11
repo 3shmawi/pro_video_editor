@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pro_image_editor/core/models/timed_layers/timed_layer.dart';
 import 'package:pro_image_editor/designs/grounded/grounded_design.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/core/platform/io/io_helper.dart';
@@ -14,7 +15,6 @@ import 'package:video_player/video_player.dart';
 
 import '/core/constants/example_constants.dart';
 import '/features/editor/widgets/video_initializing_widget.dart';
-import '../widgets/demo_build_stickers.dart';
 import '../widgets/preview_video.dart';
 import '../widgets/video_progress_alert.dart';
 
@@ -254,6 +254,41 @@ class _VideoEditorGroundedExamplePageState
           : null,
       // bitrate: _videoMetadata.bitrate,
     );
+    // Extract timed image layers (from text and paint layers)
+    final timedImageLayers = timedImageLayersMapper(parameters);
+    final hasTimedImageLayers = timedImageLayers.isNotEmpty;
+
+    // Check if native rendering is needed
+    final needsNativeRendering = hasTimedImageLayers ||
+        parameters.isTransformed ||
+        parameters.blur > 0 ||
+        parameters.colorFilters.isNotEmpty ||
+        parameters.startTime != null ||
+        parameters.endTime != null;
+
+      var exportModel = RenderVideoModel(
+        id: _taskId,
+        video: _video,
+        outputFormat: _outputFormat,
+        enableAudio: _proVideoController?.isAudioEnabled ?? true,
+        timedImageLayers: timedImageLayers,
+        blur: parameters.blur,
+        colorMatrixList: parameters.colorFilters,
+        startTime: parameters.startTime,
+        endTime: parameters.endTime,
+        transform: parameters.isTransformed
+            ? ExportTransform(
+                width: parameters.cropWidth,
+                height: parameters.cropHeight,
+                rotateTurns: parameters.rotateTurns,
+                x: parameters.cropX,
+                y: parameters.cropY,
+                flipX: parameters.flipX,
+                flipY: parameters.flipY,
+              )
+            : null,
+        // bitrate: _videoMetadata.bitrate,
+      );
 
     final directory = await getTemporaryDirectory();
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -261,7 +296,47 @@ class _VideoEditorGroundedExamplePageState
       '${directory.path}/my_video_$now.mp4',
       exportModel,
     );
+      _outputPath = await ProVideoEditor.instance.renderVideoToFile(
+        intermediateOutput,
+        exportModel,
+      );
+    }
+
     _videoGenerationTime = stopwatch.elapsed;
+  }
+
+  List<TimedImageLayer> timedImageLayersMapper(CompleteParameters parameter) {
+    if (parameter.layerCaptures == null ||
+        parameter.layerCaptures?.isEmpty == true) {
+      return [];
+    }
+
+    List<TimedImageLayer> timedImageLayers = [];
+    for (final layerCapture in parameter.layerCaptures!) {
+      final layer = layerCapture.layer;
+      if (layer is TimedTextLayer) {
+        timedImageLayers.add(
+          TimedImageLayer(
+            imageBytes: layerCapture.imageBytes,
+            startTime: Duration(milliseconds: layer.startTime),
+            endTime: Duration(
+              milliseconds: layer.endTime,
+            ),
+          ),
+        );
+      } else if (layer is TimedPaintLayer) {
+        timedImageLayers.add(
+          TimedImageLayer(
+            imageBytes: layerCapture.imageBytes,
+            startTime: Duration(milliseconds: layer.startTime),
+            endTime: Duration(
+              milliseconds: layer.endTime,
+            ),
+          ),
+        );
+      }
+    }
+    return timedImageLayers;
   }
 
   /// Closes the video editor and opens a preview screen if a video was
@@ -286,11 +361,6 @@ class _VideoEditorGroundedExamplePageState
       return Navigator.pop(context);
     }
   }
-
-  /// Calculates the number of columns for the EmojiPicker.
-  int _calculateEmojiColumns(BoxConstraints constraints) =>
-      max(1, (_useMaterialDesign ? 6 : 10) / 400 * constraints.maxWidth - 1)
-          .floor();
 
   @override
   Widget build(BuildContext context) {
@@ -660,6 +730,173 @@ class _VideoEditorGroundedExamplePageState
                 categoryColor: const Color(0xFF161616),
                 setLayer: setLayer,
                 scrollController: scrollController),
+      return ProImageEditor.video(_proVideoController!,
+          callbacks: ProImageEditorCallbacks(
+            onCompleteWithParameters: generateVideo,
+            onCloseEditor: onCloseEditor,
+            videoEditorCallbacks: VideoEditorCallbacks(
+              onPause: _videoController.pause,
+              onPlay: _videoController.play,
+              onMuteToggle: (isMuted) {
+                _videoController.setVolume(isMuted ? 0 : 100);
+              },
+              onTrimSpanUpdate: (durationSpan) {
+                if (_videoController.value.isPlaying) {
+                  _proVideoController!.pause();
+                }
+              },
+              onTrimSpanEnd: _seekToPosition,
+            ),
+            mainEditorCallbacks: MainEditorCallbacks(
+              onStartCloseSubEditor: (value) {
+                /// Start the reversed animation for the bottombar
+                _mainEditorBarKey.currentState?.setState(() {});
+              },
+            ),
+            stickerEditorCallbacks: StickerEditorCallbacks(
+              onSearchChanged: (value) {
+                /// Filter your stickers
+                debugPrint(value);
+              },
+            ),
+          ),
+          configs: ProImageEditorConfigs(
+            dialogConfigs: DialogConfigs(
+              widgets: DialogWidgets(
+                loadingDialog: (message, configs) => VideoProgressAlert(
+                  taskId: _taskId,
+                ),
+              ),
+            ),
+            videoEditor: _videoConfigs.copyWith(
+              playTimeSmoothingDuration: const Duration(milliseconds: 600),
+            ),
+            designMode: platformDesignMode,
+            theme: ThemeData(
+              useMaterial3: true,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.blue.shade800,
+                brightness: Brightness.dark,
+              ),
+            ),
+            layerInteraction: const LayerInteractionConfigs(
+              hideToolbarOnInteraction: false,
+            ),
+            mainEditor: MainEditorConfigs(
+              widgets: MainEditorWidgets(
+                removeLayerArea: (
+                  removeAreaKey,
+                  editor,
+                  rebuildStream,
+                  isLayerBeingTransformed,
+                ) =>
+                    VideoEditorRemoveArea(
+                  removeAreaKey: removeAreaKey,
+                  editor: editor,
+                  rebuildStream: rebuildStream,
+                  isLayerBeingTransformed: isLayerBeingTransformed,
+                ),
+                appBar: (editor, rebuildStream) => null,
+                bottomBar: (editor, rebuildStream, key) => ReactiveWidget(
+                  key: key,
+                  builder: (context) {
+                    return GroundedMainBar(
+                      key: _mainEditorBarKey,
+                      editor: editor,
+                      configs: editor.configs,
+                      callbacks: editor.callbacks,
+                    );
+                  },
+                  stream: rebuildStream,
+                ),
+              ),
+              style: const MainEditorStyle(
+                background: Color(0xFF000000),
+                bottomBarBackground: Color(0xFF161616),
+              ),
+            ),
+            textEditor: TextEditorConfigs(
+              customTextStyles: [
+                GoogleFonts.roboto(),
+                GoogleFonts.averiaLibre(),
+                GoogleFonts.lato(),
+                GoogleFonts.comicNeue(),
+                GoogleFonts.actor(),
+                GoogleFonts.odorMeanChey(),
+                GoogleFonts.nabla(),
+              ],
+              style: TextEditorStyle(
+                textFieldMargin: const EdgeInsets.only(top: kToolbarHeight),
+                bottomBarBackground: const Color(0xFF161616),
+                bottomBarMainAxisAlignment: !_useMaterialDesign
+                    ? MainAxisAlignment.spaceEvenly
+                    : MainAxisAlignment.start,
+              ),
+              widgets: TextEditorWidgets(
+                appBar: (textEditor, rebuildStream) => null,
+                colorPicker:
+                    (textEditor, rebuildStream, currentColor, setColor) => null,
+                bottomBar: (editorState, rebuildStream) {
+                  return ReactiveWidget(
+                    builder: (context) {
+                      return GroundedTextBar(
+                          configs: editorState.configs,
+                          callbacks: editorState.callbacks,
+                          editor: editorState,
+                          i18nColor: 'Color',
+                          showColorPicker: (currentColor) {
+                            Color? newColor;
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                content: SingleChildScrollView(
+                                  child: ColorPicker(
+                                    pickerColor: currentColor,
+                                    onColorChanged: (color) {
+                                      newColor = color;
+                                    },
+                                  ),
+                                ),
+                                actions: <Widget>[
+                                  ElevatedButton(
+                                    child: const Text('Got it'),
+                                    onPressed: () {
+                                      if (newColor != null) {
+                                        setState(() => editorState
+                                            .primaryColor = newColor!);
+                                      }
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          });
+                    },
+                    stream: rebuildStream,
+                  );
+                },
+                bodyItems: (editorState, rebuildStream) => [
+                  ReactiveWidget(
+                    stream: rebuildStream,
+                    builder: (_) => Padding(
+                      padding: const EdgeInsets.only(top: kToolbarHeight),
+                      child: GroundedTextSizeSlider(textEditor: editorState),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            i18n: const I18n(
+              paintEditor: I18nPaintEditor(
+                changeOpacity: 'Opacity',
+                lineWidth: 'Thickness',
+              ),
+              textEditor: I18nTextEditor(
+                backgroundMode: 'Mode',
+                textAlign: 'Align',
+              ),
+            ),
           ),
         ),
       );
