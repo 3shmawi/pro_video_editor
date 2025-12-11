@@ -50,6 +50,16 @@ fun applyImageLayer(
     Log.d(RENDER_TAG, "Applying Image-Layer: Size $videoWidth x $videoHeight")
 
     val overlayBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+    
+    if (overlayBitmap == null) {
+        Log.e(
+            RENDER_TAG,
+            "Failed to decode image layer bitmap. Image bytes size: ${imageBytes.size}. " +
+                    "The image data may be corrupted or in an unsupported format."
+        )
+        return
+    }
+    
     val scaledOverlay =
         Bitmap.createScaledBitmap(overlayBitmap, videoWidth, videoHeight, true)
 
