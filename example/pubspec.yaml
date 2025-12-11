@@ -16,8 +16,10 @@ dependencies:
   intl: ^0.20.1
   cupertino_icons: ^1.0.8
 
-  pro_image_editor: ^11.6.0
-  
+  pro_image_editor:
+    path: /Volumes/MoRe-H/Code/Flutter/pro_image_editor
+#    git: https://github.com/3shmawi/pro_image_editor/tree/timed-features
+
   google_fonts: ^6.2.0
   flutter_colorpicker: ^1.1.0
   mime: ^2.0.0
@@ -36,7 +38,7 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^5.0.0
- 
+
 
 flutter:
   uses-material-design: true
