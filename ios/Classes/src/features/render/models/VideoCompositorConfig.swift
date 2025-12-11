@@ -25,4 +25,6 @@ struct VideoCompositorConfig {
 
     var preferredTransform: CGAffineTransform = .identity
     var originalNaturalSize: CGSize = .zero
+    
+    var timedImageLayers: [TimedImageLayer] = []
 }

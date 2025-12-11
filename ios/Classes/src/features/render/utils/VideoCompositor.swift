@@ -19,6 +19,8 @@ class VideoCompositor: NSObject, AVVideoCompositing {
 
     // New properties for handling iPhone orientation
     var originalNaturalSize: CGSize = .zero
+    
+    var timedImageLayers: [TimedImageLayer] = []
 
     private let lutQueue = DispatchQueue(label: "lut.queue")
     private var _lutData: Data?
@@ -52,6 +54,7 @@ class VideoCompositor: NSObject, AVVideoCompositing {
         self.videoRotationDegrees = config.videoRotationDegrees
         self.shouldApplyOrientationCorrection = config.shouldApplyOrientationCorrection
         self.originalNaturalSize = config.originalNaturalSize
+        self.timedImageLayers = config.timedImageLayers
 
         self.setOverlayImage(from: config.overlayImage)
         self.setLUT(data: config.lutData, size: config.lutSize)
@@ -231,6 +234,27 @@ class VideoCompositor: NSObject, AVVideoCompositing {
                     scaleX: imageRect.width / overlay.extent.width,
                     y: imageRect.height / overlay.extent.height))
             outputImage = scaledOverlay.composited(over: outputImage)
+        }
+        
+        // Apply timed image layers
+        let compositionTime = request.compositionTime
+        let compositionTimeUs = compositionTime.seconds * 1_000_000
+        
+        for layer in timedImageLayers {
+            if layer.isVisibleAt(timeUs: Int64(compositionTimeUs)) {
+                if let uiImage = UIImage(data: layer.imageData),
+                   let cgImage = uiImage.cgImage {
+                     let layerImage = CIImage(cgImage: cgImage)
+                     let imageRect = outputImage.extent
+                     let scaledLayer = layerImage.transformed(
+                         by: CGAffineTransform(
+                             scaleX: imageRect.width / layerImage.extent.width,
+                             y: imageRect.height / layerImage.extent.height
+                         )
+                     )
+                     outputImage = scaledLayer.composited(over: outputImage)
+                }
+            }
         }
 
         guard let outputBuffer = request.renderContext.newPixelBuffer() else {
