@@ -12,6 +12,7 @@ import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.effect.TextureOverlay
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
@@ -27,13 +28,13 @@ import applyBlur
 import applyColorMatrix
 import applyCrop
 import applyFlip
-import applyImageLayer
 import applyPlaybackSpeed
 import applyRotation
 import applyScale
-import applyTimedImageLayer
 import applyTrim
 import ch.waio.pro_video_editor.src.features.render.models.TimedImageLayer
+import createStaticBitmapOverlay
+import createTimedBitmapOverlay
 import mapFormatToMimeType
 import java.io.File
 
@@ -94,26 +95,58 @@ class RenderVideo(private val context: Context) {
         applyColorMatrix(videoEffects, colorMatrixList)
         applyBlur(videoEffects, blur)
 
-        //1st - Apply static image layer (if provided)
-        applyImageLayer(
-            videoEffects, inputFile, imageBytes, rotationDegrees,
-            cropWidth, cropHeight, scaleX, scaleY
-        )
-
-        // 2nd - Apply timed image layers (if any)
-        if (timedImageBytes.isNotEmpty()) {
-            Log.d(RENDER_TAG, "Applying ${timedImageBytes.size} timed image layer(s)")
-            timedImageBytes.forEach { timedLayer ->
-                applyTimedImageLayer(
-                    videoEffects = videoEffects,
-                    inputFile = inputFile,
-                    timedLayer = timedLayer,
-                    rotationDegrees = rotationDegrees,
-                    cropWidth = cropWidth,
-                    cropHeight = cropHeight,
-                    scaleX = scaleX,
-                    scaleY = scaleY
+        // Collect all overlays (static + timed) and combine them into a single OverlayEffect
+        val hasStaticImageLayer = imageBytes != null
+        val hasTimedImageLayers = timedImageBytes.isNotEmpty()
+        
+        if (hasStaticImageLayer || hasTimedImageLayers) {
+            val allBitmapOverlays = mutableListOf<TextureOverlay>()
+            
+            // 1st - Add static image layer (if provided)
+            if (hasStaticImageLayer) {
+                val staticOverlay = createStaticBitmapOverlay(
+                    inputFile, imageBytes!!, rotationDegrees,
+                    cropWidth, cropHeight, scaleX, scaleY
                 )
+                if (staticOverlay != null) {
+                    allBitmapOverlays.add(staticOverlay)
+                }
+            }
+            
+            // 2nd - Add timed image layers (if any)
+            if (hasTimedImageLayers) {
+                Log.d(RENDER_TAG, "========================================")
+                Log.d(RENDER_TAG, "Processing ${timedImageBytes.size} timed image layer(s)")
+                timedImageBytes.forEachIndexed { index, timedLayer ->
+                    Log.d(RENDER_TAG, "Layer $index: startTime=${timedLayer.startTimeUs/1_000_000.0}s, endTime=${timedLayer.endTimeUs/1_000_000.0}s, imageSize=${timedLayer.imageBytes.size}")
+                    val timedOverlay = createTimedBitmapOverlay(
+                        inputFile = inputFile,
+                        timedLayer = timedLayer,
+                        rotationDegrees = rotationDegrees,
+                        cropWidth = cropWidth,
+                        cropHeight = cropHeight,
+                        scaleX = scaleX,
+                        scaleY = scaleY
+                    )
+                    if (timedOverlay != null) {
+                        allBitmapOverlays.add(timedOverlay)
+                        Log.d(RENDER_TAG, "Layer $index: Successfully created and added to list")
+                    } else {
+                        Log.e(RENDER_TAG, "Layer $index: FAILED to create overlay!")
+                    }
+                }
+                Log.d(RENDER_TAG, "========================================")
+            }
+            
+            // Create a single OverlayEffect with all overlays
+            if (allBitmapOverlays.isNotEmpty()) {
+                Log.d(RENDER_TAG, "========================================")
+                Log.d(RENDER_TAG, "CREATING SINGLE OverlayEffect with ${allBitmapOverlays.size} overlays")
+                Log.d(RENDER_TAG, "Overlay list contents: ${allBitmapOverlays.joinToString { it::class.java.simpleName }}")
+                Log.d(RENDER_TAG, "========================================")
+                val overlayEffect = androidx.media3.effect.OverlayEffect(allBitmapOverlays)
+                videoEffects += overlayEffect
+                Log.d(RENDER_TAG, "OverlayEffect added to videoEffects. Total videoEffects count: ${videoEffects.size}")
             }
         }
 
