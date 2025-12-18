@@ -90,6 +90,8 @@ class _VideoEditorGroundedExamplePageState
     // Initialize stream controllers early so they're available when dialog is shown
     _audioProgressController = StreamController<double>.broadcast();
     _videoBubbleProgressController = StreamController<double>.broadcast();
+    _audioProgressController?.add(-1);
+    _videoBubbleProgressController?.add(-1);
     if (kDebugMode) {
       print('Stream controllers initialized in initState');
       print('Audio controller: $_audioProgressController');
@@ -315,6 +317,12 @@ class _VideoEditorGroundedExamplePageState
         intermediateOutput,
         exportModel,
       );
+    } else {
+      // If no native rendering is needed, we still need to use the original video
+      // as the base for audio/video bubble merging
+      if (hasAudioLayers || hasVideoBubbleLayers) {
+        _outputPath = await _video.safeFilePath();
+      }
     }
 
     final ffmpegService = FfmpegExportService();
@@ -327,7 +335,7 @@ class _VideoEditorGroundedExamplePageState
           '${directory.path}/audio_merged_${DateTime.now().millisecondsSinceEpoch}.mp4';
 
       _outputPath = await ffmpegService.mergeAudioIntoVideo(
-        inputVideoPath: _outputPath!, // todo check this later
+        inputVideoPath: _outputPath!,
         audioLayers: audioLayers,
         outputPath: audioOutput,
         videoDurationMs: videoDurationMs,
@@ -349,7 +357,7 @@ class _VideoEditorGroundedExamplePageState
           '${directory.path}/video_bubbles_${DateTime.now().millisecondsSinceEpoch}.mp4';
 
       _outputPath = await ffmpegService.mergeVideoBubblesIntoVideo(
-        inputVideoPath: _outputPath!, // todo check this later
+        inputVideoPath: _outputPath!,
         videoBubbleLayers: videoBubbleLayers,
         outputPath: finalOutput,
         videoDurationMs: videoDurationMs,
@@ -451,6 +459,14 @@ class _VideoEditorGroundedExamplePageState
                 }
               },
               onTrimSpanEnd: _seekToPosition,
+              onSeek: (position) async {
+                // Pause first
+                await _videoController.pause();
+                // Seek the actual video player
+                await _videoController.seekTo(position);
+                // Update ProVideoController's play time
+                _proVideoController!.setPlayTime(position);
+              },
             ),
             mainEditorCallbacks: MainEditorCallbacks(
               onStartCloseSubEditor: (value) {
