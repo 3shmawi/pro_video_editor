@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pro_image_editor/core/models/timed_layers/timed_paint_layer.dart';
+import 'package:pro_image_editor/core/models/timed_layers/timed_text_layer.dart';
+import 'package:pro_image_editor/features/main_editor/services/ffmpeg_export_service.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/core/platform/io/io_helper.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -29,7 +32,7 @@ class _VideoEditorBasicExamplePageState
 
   /// Video editor configuration settings.
   late final VideoEditorConfigs _videoConfigs = const VideoEditorConfigs(
-    initialMuted: true,
+    initialMuted: false,
     initialPlay: false,
     isAudioSupported: true,
     minTrimDuration: Duration(seconds: 7),
@@ -70,15 +73,31 @@ class _VideoEditorBasicExamplePageState
 
   final _taskId = DateTime.now().microsecondsSinceEpoch.toString();
 
+  /// Stream controllers for FFmpeg progress tracking
+  StreamController<double>? _audioProgressController;
+  StreamController<double>? _videoBubbleProgressController;
+
   @override
   void initState() {
     super.initState();
+    // Initialize stream controllers early so they're available when dialog is shown
+    _audioProgressController = StreamController<double>.broadcast();
+    _videoBubbleProgressController = StreamController<double>.broadcast();
+    _audioProgressController?.add(-1);
+    _videoBubbleProgressController?.add(-1);
+    if (kDebugMode) {
+      print('Stream controllers initialized in initState');
+      print('Audio controller: $_audioProgressController');
+      print('Video bubble controller: $_videoBubbleProgressController');
+    }
     _initializePlayer();
   }
 
   @override
   void dispose() {
     _videoController.dispose();
+    _audioProgressController?.close();
+    _videoBubbleProgressController?.close();
     super.dispose();
   }
 
@@ -216,43 +235,180 @@ class _VideoEditorBasicExamplePageState
   ///
   /// Applies blur, color filters, cropping, rotation, flipping, and trimming
   /// before exporting using FFmpeg. Measures and stores the generation time.
-  Future<void> generateVideo(CompleteParameters parameters) async {
+ Future<void> generateVideo(
+    CompleteParameters parameters,
+  ) async {
+    // Extract audio and video bubble layers first to determine what controllers we need
+    final audioLayers = parameters.layers.whereType<AudioLayer>().toList();
+    final hasAudioLayers = audioLayers.isNotEmpty;
+
+    final videoBubbleLayers =
+        parameters.layers.whereType<VideoBubbleLayer>().toList();
+    final hasVideoBubbleLayers = videoBubbleLayers.isNotEmpty;
+
+    // Reset stream controllers with initial 0 progress
+    // Controllers are already initialized in initState
+    if (hasAudioLayers) {
+      _audioProgressController?.add(0.0);
+    }
+    if (hasVideoBubbleLayers) {
+      _videoBubbleProgressController?.add(0.0);
+    }
+
     final stopwatch = Stopwatch()..start();
 
     unawaited(_videoController.pause());
 
-    var exportModel = RenderVideoModel(
-      id: _taskId,
-      video: _video,
-      outputFormat: _outputFormat,
-      enableAudio: _proVideoController?.isAudioEnabled ?? true,
-      imageBytes: parameters.layers.isNotEmpty ? parameters.image : null,
-      blur: parameters.blur,
-      colorMatrixList: parameters.colorFilters,
-      startTime: parameters.startTime,
-      endTime: parameters.endTime,
-      transform: parameters.isTransformed
-          ? ExportTransform(
-              width: parameters.cropWidth,
-              height: parameters.cropHeight,
-              rotateTurns: parameters.rotateTurns,
-              x: parameters.cropX,
-              y: parameters.cropY,
-              flipX: parameters.flipX,
-              flipY: parameters.flipY,
-            )
-          : null,
-      // bitrate: _videoMetadata.bitrate,
-    );
+    // Extract timed image layers (from text and paint layers)
+    final timedImageLayers = timedImageLayersMapper(parameters);
+    final hasTimedImageLayers = timedImageLayers.isNotEmpty;
 
-    final directory = await getTemporaryDirectory();
-    final now = DateTime.now().millisecondsSinceEpoch;
-    _outputPath = await ProVideoEditor.instance.renderVideoToFile(
-      '${directory.path}/my_video_$now.mp4',
-      exportModel,
-    );
+    // Check if native rendering is needed
+    final needsNativeRendering = hasTimedImageLayers ||
+        parameters.isTransformed ||
+        parameters.blur > 0 ||
+        parameters.colorFilters.isNotEmpty ||
+        parameters.startTime != null ||
+        parameters.endTime != null;
+
+    // Stage 1: Native rendering (if needed)
+    if (needsNativeRendering) {
+      final directory = await getTemporaryDirectory();
+      final intermediateOutput = hasAudioLayers || hasVideoBubbleLayers
+          ? '${directory.path}/intermediate_${DateTime.now().millisecondsSinceEpoch}.mp4'
+          : '${directory.path}/my_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      var exportModel = RenderVideoModel(
+        id: _taskId,
+        video: _video,
+        outputFormat: _outputFormat,
+        enableAudio: _proVideoController?.isAudioEnabled ?? true,
+        timedImageLayers: timedImageLayers,
+        blur: parameters.blur,
+        colorMatrixList: parameters.colorFilters,
+        startTime: parameters.startTime,
+        endTime: parameters.endTime,
+        transform: parameters.isTransformed
+            ? ExportTransform(
+                width: parameters.cropWidth,
+                height: parameters.cropHeight,
+                rotateTurns: parameters.rotateTurns,
+                x: parameters.cropX,
+                y: parameters.cropY,
+                flipX: parameters.flipX,
+                flipY: parameters.flipY,
+              )
+            : null,
+        // bitrate: _videoMetadata.bitrate,
+      );
+
+      _outputPath = await ProVideoEditor.instance.renderVideoToFile(
+        intermediateOutput,
+        exportModel,
+      );
+    } else {
+      // If no native rendering is needed, we still need to use the original video
+      // as the base for audio/video bubble merging
+      if (hasAudioLayers || hasVideoBubbleLayers) {
+        _outputPath = await _video.safeFilePath();
+      }
+    }
+
+    final ffmpegService = FfmpegExportService();
+    final videoDurationMs = _videoMetadata.duration.inMilliseconds;
+
+    // Stage 2: Audio merging (if needed)
+    if (hasAudioLayers) {
+      final directory = await getTemporaryDirectory();
+      final audioOutput =
+          '${directory.path}/audio_merged_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      _outputPath = await ffmpegService.mergeAudioIntoVideo(
+        inputVideoPath: _outputPath!,
+        audioLayers: audioLayers,
+        outputPath: audioOutput,
+        videoDurationMs: videoDurationMs,
+        keepOriginalAudio: parameters.keepOriginalAudio,
+        onProgress: (progress) {
+          _audioProgressController?.add(progress);
+          if (kDebugMode) {
+            print(
+                'FFmpeg audio progress: ${(progress * 100).toStringAsFixed(1)}%');
+          }
+        },
+      );
+    }
+
+    // Stage 3: Video bubble merging (if needed)
+    if (hasVideoBubbleLayers) {
+      final directory = await getTemporaryDirectory();
+      final finalOutput =
+          '${directory.path}/video_bubbles_${DateTime.now().millisecondsSinceEpoch}.mp4';
+
+      _outputPath = await ffmpegService.mergeVideoBubblesIntoVideo(
+        inputVideoPath: _outputPath!,
+        videoBubbleLayers: videoBubbleLayers,
+        outputPath: finalOutput,
+        videoDurationMs: videoDurationMs,
+        onProgress: (progress) {
+          _videoBubbleProgressController?.add(progress);
+          if (kDebugMode) {
+            print(
+                'FFmpeg video bubble progress: ${(progress * 100).toStringAsFixed(1)}%');
+          }
+        },
+      );
+    }
+
     _videoGenerationTime = stopwatch.elapsed;
   }
+
+  List<TimedImageLayer> timedImageLayersMapper(CompleteParameters parameter) {
+    if (parameter.layerCaptures == null ||
+        parameter.layerCaptures?.isEmpty == true) {
+      if (kDebugMode) print('🔴 No layer captures found');
+      return [];
+    }
+
+    if (kDebugMode) {
+      print('========================================');
+      print('📦 Processing ${parameter.layerCaptures!.length} layer captures');
+    }
+
+    List<TimedImageLayer> timedImageLayers = [];
+    for (final layerCapture in parameter.layerCaptures!) {
+      final layer = layerCapture.layer;
+      if (layer is TimedTextLayer) {
+        final timedLayer = TimedImageLayer(
+          imageBytes: layerCapture.imageBytes,
+          startTime: Duration(milliseconds: layer.startTime),
+          endTime: Duration(milliseconds: layer.endTime),
+        );
+        timedImageLayers.add(timedLayer);
+        if (kDebugMode) {
+          print('✅ Text Layer ${timedImageLayers.length}: ${layer.startTime / 1000}s-${layer.endTime / 1000}s, bytes: ${layerCapture.imageBytes.length}');
+        }
+      } else if (layer is TimedPaintLayer) {
+        final timedLayer = TimedImageLayer(
+          imageBytes: layerCapture.imageBytes,
+          startTime: Duration(milliseconds: layer.startTime),
+          endTime: Duration(milliseconds: layer.endTime),
+        );
+        timedImageLayers.add(timedLayer);
+        if (kDebugMode) {
+          print('✅ Paint Layer ${timedImageLayers.length}: ${layer.startTime / 1000}s-${layer.endTime / 1000}s, bytes: ${layerCapture.imageBytes.length}');
+        }
+      }
+    }
+    
+    if (kDebugMode) {
+      print('📊 Total timed layers created: ${timedImageLayers.length}');
+      print('========================================');
+    }
+    
+    return timedImageLayers;
+  }
+
 
   /// Closes the video editor and opens a preview screen if a video was
   /// exported.
@@ -308,6 +464,14 @@ class _VideoEditorBasicExamplePageState
             }
           },
           onTrimSpanEnd: _seekToPosition,
+          onSeek: (position) async {
+            // Pause first
+            await _videoController.pause();
+            // Seek the actual video player
+            await _videoController.seekTo(position);
+            // Update ProVideoController's play time
+            _proVideoController!.setPlayTime(position);
+          },
         ),
       ),
       configs: ProImageEditorConfigs(
