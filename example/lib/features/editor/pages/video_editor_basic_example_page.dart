@@ -235,7 +235,7 @@ class _VideoEditorBasicExamplePageState
   ///
   /// Applies blur, color filters, cropping, rotation, flipping, and trimming
   /// before exporting using FFmpeg. Measures and stores the generation time.
- Future<void> generateVideo(
+  Future<void> generateVideo(
     CompleteParameters parameters,
   ) async {
     // Extract audio and video bubble layers first to determine what controllers we need
@@ -259,7 +259,6 @@ class _VideoEditorBasicExamplePageState
 
     unawaited(_videoController.pause());
 
-    // Extract timed image layers (from text and paint layers)
     final timedImageLayers = timedImageLayersMapper(parameters);
     final hasTimedImageLayers = timedImageLayers.isNotEmpty;
 
@@ -386,7 +385,8 @@ class _VideoEditorBasicExamplePageState
         );
         timedImageLayers.add(timedLayer);
         if (kDebugMode) {
-          print('✅ Text Layer ${timedImageLayers.length}: ${layer.startTime / 1000}s-${layer.endTime / 1000}s, bytes: ${layerCapture.imageBytes.length}');
+          print(
+              '✅ Text Layer ${timedImageLayers.length}: ${layer.startTime / 1000}s-${layer.endTime / 1000}s, bytes: ${layerCapture.imageBytes.length}');
         }
       } else if (layer is TimedPaintLayer) {
         final timedLayer = TimedImageLayer(
@@ -396,19 +396,19 @@ class _VideoEditorBasicExamplePageState
         );
         timedImageLayers.add(timedLayer);
         if (kDebugMode) {
-          print('✅ Paint Layer ${timedImageLayers.length}: ${layer.startTime / 1000}s-${layer.endTime / 1000}s, bytes: ${layerCapture.imageBytes.length}');
+          print(
+              '✅ Paint Layer ${timedImageLayers.length}: ${layer.startTime / 1000}s-${layer.endTime / 1000}s, bytes: ${layerCapture.imageBytes.length}');
         }
       }
     }
-    
+
     if (kDebugMode) {
       print('📊 Total timed layers created: ${timedImageLayers.length}');
       print('========================================');
     }
-    
+
     return timedImageLayers;
   }
-
 
   /// Closes the video editor and opens a preview screen if a video was
   /// exported.
@@ -479,6 +479,8 @@ class _VideoEditorBasicExamplePageState
           widgets: DialogWidgets(
             loadingDialog: (message, configs) => VideoProgressAlert(
               taskId: _taskId,
+              onAudioProgress: _audioProgressController,
+              onVideoBubbleProgress: _videoBubbleProgressController,
             ),
           ),
         ),

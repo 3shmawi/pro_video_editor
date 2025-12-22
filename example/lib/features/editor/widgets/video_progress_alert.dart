@@ -100,8 +100,8 @@ class _VideoProgressAlertState extends State<VideoProgressAlert> {
   /// - Audio merging: 30% of total progress
   /// - Video bubble merging: 30% of total progress
   double _calculateOverallProgress(double nativeProgress) {
-    final hasAudio = widget.onAudioProgress != null && _audioProgress != -1;
-    final hasVideoBubbles = widget.onVideoBubbleProgress != null && _videoBubbleProgress != -1;
+    final hasAudio = widget.onAudioProgress != null && _audioProgress >-1;
+    final hasVideoBubbles = widget.onVideoBubbleProgress != null && _videoBubbleProgress >-1;
 
     if (!hasAudio && !hasVideoBubbles) {
       // Only native rendering
@@ -121,8 +121,8 @@ class _VideoProgressAlertState extends State<VideoProgressAlert> {
   }
 
   String _getProgressStage(double nativeProgress) {
-    final hasAudio = widget.onAudioProgress != null;
-    final hasVideoBubbles = widget.onVideoBubbleProgress != null;
+    final hasAudio = widget.onAudioProgress != null && _audioProgress > -1;
+    final hasVideoBubbles = widget.onVideoBubbleProgress != null && _videoBubbleProgress > -1;
 
     if (nativeProgress < 1.0) {
       return 'Rendering video...';
