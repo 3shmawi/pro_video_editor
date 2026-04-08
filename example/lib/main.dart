@@ -3,12 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:pro_video_editor_example/features/editor/pages/video_editor_basic_example_page.dart';
-import 'package:pro_video_editor_example/features/editor/pages/video_editor_grounded_example_page.dart';
-import 'package:pro_video_editor_example/features/editor/pages/video_editor_with_timed_overlays_page.dart';
-
-import 'features/metadata/video_metadata_example_page.dart';
-import 'features/render/video_renderer_page.dart';
-import 'features/thumbnail/thumbnail_example_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +10,7 @@ void main() {
 
   runApp(const MyApp());
 }
-
+ 
 /// The root widget of the application.
 ///
 /// This widget sets up the app's state and initial configuration.
@@ -56,36 +50,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String _platformVersion = 'Unknown';
   final List<_ExampleListItem> _exampleList = [
-    _ExampleListItem(
-      icon: Icons.info_outline,
-      title: 'Video-Metadata',
-      pageBuilder: () => const VideoMetadataExamplePage(),
-    ),
-    _ExampleListItem(
-      icon: Icons.image_outlined,
-      title: 'Thumbnails',
-      pageBuilder: () => const ThumbnailExamplePage(),
-    ),
-    _ExampleListItem(
-      icon: Icons.developer_board_outlined,
-      title: 'Video-Renderer',
-      pageBuilder: () => const VideoRendererPage(),
-    ),
+   
     _ExampleListItem(
       icon: Icons.edit,
       title: 'Video-Editor',
       pageBuilder: () => const VideoEditorBasicExamplePage(),
     ),
-    _ExampleListItem(
-      icon: Icons.grass_outlined,
-      title: 'Video-Editor Grounded-Design',
-      pageBuilder: () => const VideoEditorGroundedExamplePage(),
-    ),
-    _ExampleListItem(
-      icon: Icons.layers_outlined,
-      title: '🎯 Video-Editor with Timed Overlays',
-      pageBuilder: () => const VideoEditorWithTimedOverlaysPage(),
-    ),
+    
   ];
 
   @override

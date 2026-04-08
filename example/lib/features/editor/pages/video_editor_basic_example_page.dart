@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pro_image_editor/core/models/timed_layers/timed_paint_layer.dart';
 import 'package:pro_image_editor/core/models/timed_layers/timed_text_layer.dart';
@@ -9,7 +11,6 @@ import 'package:pro_image_editor/features/main_editor/services/ffmpeg_export_ser
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/core/platform/io/io_helper.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
-import 'package:video_player/video_player.dart';
 
 import '/features/editor/widgets/video_initializing_widget.dart';
 import '../widgets/preview_video.dart';
@@ -63,13 +64,17 @@ class _VideoEditorBasicExamplePageState
 
   /// The video currently loaded in the editor.
   final _video = EditorVideo.network(
-      'https://firebasestorage.googleapis.com/v0/b/athlepad-development/o/videos%2F3iog22PGQthr19jS4cptBT0NUcW2%2FChGEzLco9nqS0EUF7LRN.mp4?alt=media&token=e2bb0abb-f48f-46a6-b4c8-345719b95791');
+      'https://storage.googleapis.com/athlepad-dev.firebasestorage.app/videos%2FrnGQMJQIjlMTWFzYoocSI4pzhe83%2F1767020909438.mp4');
 
   String? _outputPath;
 
   /// The duration it took to generate the exported video.
   Duration _videoGenerationTime = Duration.zero;
-  late VideoPlayerController _videoController;
+  
+  /// Media kit player and controller for video playback
+  late final Player _player;
+  late final VideoController _videoController;
+  StreamSubscription<Duration>? _positionSubscription;
 
   final _taskId = DateTime.now().microsecondsSinceEpoch.toString();
 
@@ -85,6 +90,11 @@ class _VideoEditorBasicExamplePageState
     _videoBubbleProgressController = StreamController<double>.broadcast();
     _audioProgressController?.add(-1);
     _videoBubbleProgressController?.add(-1);
+    
+    // Initialize media_kit player
+    _player = Player();
+    _videoController = VideoController(_player);
+    
     if (kDebugMode) {
       print('Stream controllers initialized in initState');
       print('Audio controller: $_audioProgressController');
@@ -95,7 +105,8 @@ class _VideoEditorBasicExamplePageState
 
   @override
   void dispose() {
-    _videoController.dispose();
+    _positionSubscription?.cancel();
+    _player.dispose();
     _audioProgressController?.close();
     _videoBubbleProgressController?.close();
     super.dispose();
@@ -166,17 +177,15 @@ class _VideoEditorBasicExamplePageState
     await _setMetadata();
     _generateThumbnails();
 
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(
-        'https://firebasestorage.googleapis.com/v0/b/athlepad-development/o/videos%2F3iog22PGQthr19jS4cptBT0NUcW2%2FChGEzLco9nqS0EUF7LRN.mp4?alt=media&token=e2bb0abb-f48f-46a6-b4c8-345719b95791'));
-
-    await Future.wait([
-      _videoController.initialize(),
-      _videoController.setLooping(false),
-      _videoController.setVolume(_videoConfigs.initialMuted ? 0 : 100),
-      _videoConfigs.initialPlay
-          ? _videoController.play()
-          : _videoController.pause(),
-    ]);
+    // Open media with media_kit
+    await _player.open(
+      Media('https://storage.googleapis.com/athlepad-dev.firebasestorage.app/videos%2FrnGQMJQIjlMTWFzYoocSI4pzhe83%2F1767020909438.mp4'),
+      play: _videoConfigs.initialPlay,
+    );
+    
+    // Set initial volume
+    await _player.setVolume(_videoConfigs.initialMuted ? 0 : 100);
+    
     if (!mounted) return;
 
     _proVideoController = ProVideoController(
@@ -187,19 +196,21 @@ class _VideoEditorBasicExamplePageState
       thumbnails: _thumbnails,
     );
 
-    _videoController.addListener(_onDurationChange);
+    // Listen to position changes
+    _positionSubscription = _player.stream.position.listen(_onPositionChange);
 
     setState(() {});
   }
 
-  void _onDurationChange() {
+  void _onPositionChange(Duration position) {
+    if (!mounted) return;
+    
     var totalVideoDuration = _videoMetadata.duration;
-    var duration = _videoController.value.position;
-    _proVideoController!.setPlayTime(duration);
+    _proVideoController?.setPlayTime(position);
 
-    if (_durationSpan != null && duration >= _durationSpan!.end) {
+    if (_durationSpan != null && position >= _durationSpan!.end) {
       _seekToPosition(_durationSpan!);
-    } else if (duration >= totalVideoDuration) {
+    } else if (position >= totalVideoDuration) {
       _seekToPosition(
         TrimDurationSpan(start: Duration.zero, end: totalVideoDuration),
       );
@@ -218,8 +229,8 @@ class _VideoEditorBasicExamplePageState
     _proVideoController!.pause();
     _proVideoController!.setPlayTime(_durationSpan!.start);
 
-    await _videoController.pause();
-    await _videoController.seekTo(span.start);
+    await _player.pause();
+    await _player.seek(span.start);
 
     _isSeeking = false;
 
@@ -257,7 +268,7 @@ class _VideoEditorBasicExamplePageState
 
     final stopwatch = Stopwatch()..start();
 
-    unawaited(_videoController.pause());
+    unawaited(_player.pause());
 
     final timedImageLayers = timedImageLayersMapper(parameters);
     final hasTimedImageLayers = timedImageLayers.isNotEmpty;
@@ -453,22 +464,22 @@ class _VideoEditorBasicExamplePageState
         onCompleteWithParameters: generateVideo,
         onCloseEditor: onCloseEditor,
         videoEditorCallbacks: VideoEditorCallbacks(
-          onPause: _videoController.pause,
-          onPlay: _videoController.play,
-          onMuteToggle: (isMuted) {
-            _videoController.setVolume(isMuted ? 0 : 100);
+          onPause: () async => await _player.pause(),
+          onPlay: () async => await _player.play(),
+          onMuteToggle: (isMuted) async {
+            await _player.setVolume(isMuted ? 0 : 100);
           },
           onTrimSpanUpdate: (durationSpan) {
-            if (_videoController.value.isPlaying) {
+            if (_player.state.playing) {
               _proVideoController!.pause();
             }
           },
           onTrimSpanEnd: _seekToPosition,
           onSeek: (position) async {
             // Pause first
-            await _videoController.pause();
+            await _player.pause();
             // Seek the actual video player
-            await _videoController.seekTo(position);
+            await _player.seek(position);
             // Update ProVideoController's play time
             _proVideoController!.setPlayTime(position);
           },
@@ -514,11 +525,9 @@ class _VideoEditorBasicExamplePageState
 
   Widget _buildVideoPlayer() {
     return Center(
-      child: AspectRatio(
-        aspectRatio: _videoController.value.size.aspectRatio,
-        child: VideoPlayer(
-          _videoController,
-        ),
+      child: Video(
+        controller: _videoController,
+        fit: BoxFit.contain,
       ),
     );
   }
